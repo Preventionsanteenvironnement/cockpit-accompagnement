@@ -1,60 +1,43 @@
-// admin-auth.js - Version Spéciale pour data_eleves.js
+// admin-auth.js - Version V2 avec Filtres et Recherche
+
+// Variables globales pour stocker les données
+let allEleves = [];
+let authData = {};
 
 async function chargerDonneesAutorisations() {
     try {
         const listeEleves = document.getElementById('liste-eleves');
         const statusMsg = document.getElementById('status-message');
         
-        // 1. On charge votre fichier spécifique "data_eleves.js" depuis le site PSE
-        // C'est ici que ça bloquait avant : on change la méthode de lecture.
+        // 1. Chargement de la BDD Élèves (data_eleves.js) depuis le site PSE
         if (typeof window.BDD_ELEVES === 'undefined') {
             await new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                // L'adresse exacte de votre fichier (vérifiée sur votre capture)
                 script.src = 'https://preventionsanteenvironnement.github.io/PSE/data_eleves.js';
                 script.onload = resolve;
-                script.onerror = () => reject(new Error("Impossible de trouver le fichier data_eleves.js sur le site PSE."));
+                script.onerror = () => reject(new Error("Impossible de trouver le fichier data_eleves.js"));
                 document.head.appendChild(script);
             });
         }
 
-        // On récupère les données de votre fichier
-        const dataLife = window.BDD_ELEVES; 
-        console.log("Élèves trouvés :", dataLife.length);
+        allEleves = window.BDD_ELEVES; 
 
-        // 2. On charge les autorisations du cockpit
+        // 2. Chargement des autorisations (config locale)
         const responseAuth = await fetch('data/config/autorisations.json');
-        const dataAuth = await responseAuth.json();
+        authData = await responseAuth.json();
 
-        listeEleves.innerHTML = ''; // On vide le tableau pour le remplir
-        
-        // 3. On affiche la liste ligne par ligne
-        dataLife.forEach(eleve => {
-            const code = eleve.userCode; // Votre fichier utilise 'userCode'
-            if (!code) return;
+        // 3. IMPORTANT : On remplit le menu déroulant des classes
+        initialiserFiltres();
 
-            const estAutorise = dataAuth.ELEVES_AUTORISES && dataAuth.ELEVES_AUTORISES[code] ? dataAuth.ELEVES_AUTORISES[code].autorise : false;
-
-            const ligne = `
-                <tr>
-                    <td><strong>${code}</strong> <small class="text-muted">(${eleve.classe})</small></td>
-                    <td>
-                        <span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">
-                            ${estAutorise ? 'Autorisé' : 'Non autorisé'}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm ${estAutorise ? 'btn-outline-danger' : 'btn-primary'}" 
-                                onclick="basculerAutorisation('${code}', ${estAutorise})">
-                            ${estAutorise ? 'Retirer accès' : 'Activer accès'}
-                        </button>
-                    </td>
-                </tr>
-            `;
-            listeEleves.innerHTML += ligne;
-        });
+        // 4. On affiche tout le monde au démarrage
+        filtrerTableau();
 
         statusMsg.style.display = 'none';
+
+        // 5. On active les "écouteurs" (dès qu'on touche un filtre, ça met à jour)
+        document.getElementById('search-input').addEventListener('input', filtrerTableau);
+        document.getElementById('filter-classe').addEventListener('change', filtrerTableau);
+        document.getElementById('filter-status').addEventListener('change', filtrerTableau);
 
     } catch (error) {
         console.error("Erreur :", error);
@@ -63,24 +46,117 @@ async function chargerDonneesAutorisations() {
     }
 }
 
-// Fonction pour sauvegarder dans Firebase quand vous cliquez sur un bouton
+// Fonction qui trouve toutes les classes uniques (B1AGO1, etc.) et remplit le menu
+function initialiserFiltres() {
+    // On extrait la liste des classes sans doublons
+    const classes = [...new Set(allEleves.map(e => e.classe))].sort();
+    const selectClasse = document.getElementById('filter-classe');
+    
+    // On vide le menu pour être sûr (sauf l'option "Toutes")
+    selectClasse.innerHTML = '<option value="ALL">Toutes les classes</option>';
+
+    classes.forEach(cls => {
+        const option = document.createElement('option');
+        option.value = cls;
+        option.innerText = cls;
+        selectClasse.appendChild(option);
+    });
+}
+
+// Fonction centrale qui décide qui afficher selon les filtres choisis
+function filtrerTableau() {
+    const searchText = document.getElementById('search-input').value.toLowerCase();
+    const selectedClasse = document.getElementById('filter-classe').value;
+    const selectedStatus = document.getElementById('filter-status').value;
+
+    const resultats = allEleves.filter(eleve => {
+        const code = eleve.userCode;
+        // On regarde si on a une info Firebase locale pour cet élève, sinon false
+        const estAutorise = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) 
+                            ? authData.ELEVES_AUTORISES[code].autorise 
+                            : false;
+
+        // 1. Filtre Recherche (Nom ou Code)
+        const matchSearch = code.toLowerCase().includes(searchText) || eleve.classe.toLowerCase().includes(searchText);
+        
+        // 2. Filtre Classe
+        const matchClasse = (selectedClasse === "ALL") || (eleve.classe === selectedClasse);
+        
+        // 3. Filtre Statut
+        let matchStatus = true;
+        if (selectedStatus === "AUTHORIZED") matchStatus = estAutorise;
+        if (selectedStatus === "UNAUTHORIZED") matchStatus = !estAutorise;
+
+        return matchSearch && matchClasse && matchStatus;
+    });
+
+    afficherTableau(resultats);
+}
+
+// Fonction d'affichage pur (dessine le tableau)
+function afficherTableau(liste) {
+    const tbody = document.getElementById('liste-eleves');
+    const counter = document.getElementById('counter-display');
+    tbody.innerHTML = '';
+    
+    counter.innerText = `${liste.length} élèves`;
+
+    if (liste.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Aucun élève ne correspond aux filtres.</td></tr>';
+        return;
+    }
+
+    liste.forEach(eleve => {
+        const code = eleve.userCode;
+        const estAutorise = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) 
+                            ? authData.ELEVES_AUTORISES[code].autorise 
+                            : false;
+
+        const ligne = `
+            <tr>
+                <td><strong>${code}</strong> <small class="text-muted">(${eleve.classe})</small></td>
+                <td>
+                    <span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">
+                        ${estAutorise ? 'Autorisé' : 'Non autorisé'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm ${estAutorise ? 'btn-outline-danger' : 'btn-primary'}" 
+                            onclick="basculerAutorisation('${code}', ${estAutorise})">
+                        ${estAutorise ? 'Retirer' : 'Activer'}
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += ligne;
+    });
+}
+
+// Action sur le bouton (Envoi vers Firebase)
 async function basculerAutorisation(code, statutActuel) {
     const nouveauStatut = !statutActuel;
-    // Petit message de confirmation
-    if (confirm(nouveauStatut ? `Autoriser l'élève ${code} ?` : `Retirer l'accès à ${code} ?`)) {
-        try {
-            await firebase.database().ref(`accompagnement/autorisations/${code}`).set({
-                autorise: nouveauStatut,
-                date_modification: new Date().toISOString(),
-                parcours: "Standard"
-            });
-            alert("Mise à jour réussie !");
-            chargerDonneesAutorisations(); // On rafraîchit la liste
-        } catch (error) {
-            alert("Erreur de connexion Firebase : " + error);
-        }
+    
+    // Mise à jour locale immédiate pour que l'interface soit réactive
+    if (!authData.ELEVES_AUTORISES) authData.ELEVES_AUTORISES = {};
+    if (!authData.ELEVES_AUTORISES[code]) authData.ELEVES_AUTORISES[code] = {};
+    authData.ELEVES_AUTORISES[code].autorise = nouveauStatut;
+
+    // On rafraichit le tableau tout de suite
+    filtrerTableau(); 
+
+    try {
+        await firebase.database().ref(`accompagnement/autorisations/${code}`).set({
+            autorise: nouveauStatut,
+            date_modification: new Date().toISOString(),
+            parcours: "Standard"
+        });
+        console.log(`Sauvegarde réussie pour ${code}`);
+    } catch (error) {
+        alert("Erreur Firebase : " + error);
+        // On annule le changement si ça a planté
+        authData.ELEVES_AUTORISES[code].autorise = statutActuel;
+        filtrerTableau();
     }
 }
 
-// Lancement automatique au démarrage
 window.onload = chargerDonneesAutorisations;
