@@ -1,68 +1,58 @@
 {
   "projet": "Accompagnement CPS",
-  "source": "Santé publique France 2025 - Tome 1",
-  "derniere_maj": "2026-01-31",
+  "source": "Santé publique France 2025 - Adapté Lycée Pro",
+  "derniere_maj": "2026-02-01",
   "axes": [
     {
       "id": "COG",
-      "nom": "Compétences Cognitives",
+      "nom": "Mes Pensées & Choix",
+      "nom_officiel": "Compétences Cognitives",
       "couleur": "#3498db",
       "phases": [
         {
           "id": 1,
-          "nom": "Phase 1 : Renforcer sa conscience de soi",
+          "nom": "Mieux me connaître",
           "competences_generales": [
             {
               "id": "C1",
-              "nom": "Conscience de soi",
+              "nom": "Savoir qui je suis",
+              "nom_officiel": "Conscience de soi",
               "competences_specifiques": [
                 {
                   "id": "C1.1",
-                  "nom": "Accroître sa connaissance de soi",
-                  "indicateurs": [
-                    "Connaître les dimensions du Soi",
-                    "Connaître le rôle et les limites de l’image de soi",
-                    "Observer et accueillir son Soi interne"
-                  ]
+                  "nom": "Savoir ce que je vaux et qui je suis",
+                  "nom_officiel": "Accroître sa connaissance de soi",
+                  "indicateurs": ["J'ai identifié mes forces", "Je sais ce que je veux"]
                 },
                 {
                   "id": "C1.2",
-                  "nom": "Savoir penser de façon critique",
-                  "indicateurs": [
-                    "Questionner l’image de soi",
-                    "Utiliser la défusion cognitive"
-                  ]
+                  "nom": "Prendre du recul / Ne pas juger trop vite",
+                  "nom_officiel": "Savoir penser de façon critique",
+                  "indicateurs": ["J'ai vérifié une info", "J'ai pris le temps de réfléchir"]
                 },
                 {
                   "id": "C1.3",
-                  "nom": "Connaître ses valeurs et besoins",
-                  "indicateurs": [
-                    "Identifier ses besoins psychologiques",
-                    "Identifier ses valeurs personnelles"
-                  ]
+                  "nom": "Identifier ce qui est important pour moi",
+                  "nom_officiel": "Connaître ses valeurs et besoins",
+                  "indicateurs": ["J'ai respecté mes valeurs", "J'ai écouté mes besoins"]
                 },
                 {
                   "id": "C1.4",
-                  "nom": "Prendre des décisions constructives",
-                  "indicateurs": [
-                    "Choisir des buts personnels authentiques"
-                  ]
+                  "nom": "Faire des choix réfléchis",
+                  "nom_officiel": "Prendre des décisions constructives",
+                  "indicateurs": ["J'ai pesé le pour et le contre", "J'ai assumé mon choix"]
                 },
                 {
                   "id": "C1.5",
-                  "nom": "S’auto-évaluer positivement",
-                  "indicateurs": [
-                    "Reconnaître ses qualités et forces",
-                    "Développer une relation bienveillante avec soi-même"
-                  ]
+                  "nom": "Reconnaître mes réussites",
+                  "nom_officiel": "S’auto-évaluer positivement",
+                  "indicateurs": ["Je suis fier de ce que j'ai fait", "J'ai vu mes progrès"]
                 },
                 {
                   "id": "C1.6",
-                  "nom": "Renforcer sa pleine attention",
-                  "indicateurs": [
-                    "Diriger son attention sur l'instant présent",
-                    "Accueillir l’expérience sans jugement"
-                  ]
+                  "nom": "Rester concentré sur l'instant",
+                  "nom_officiel": "Renforcer sa pleine attention",
+                  "indicateurs": ["Je suis resté focus", "J'ai ignoré les distractions"]
                 }
               ]
             }
@@ -72,32 +62,30 @@
     },
     {
       "id": "EMO",
-      "nom": "Compétences Émotionnelles",
+      "nom": "Mes Émotions",
+      "nom_officiel": "Compétences Émotionnelles",
       "couleur": "#e74c3c",
       "phases": [
         {
           "id": 1,
-          "nom": "Phase 1 : Renforcer sa conscience des émotions",
+          "nom": "Comprendre ce que je ressens",
           "competences_generales": [
             {
               "id": "E1",
-              "nom": "Conscience des émotions",
+              "nom": "Gérer mes émotions",
+              "nom_officiel": "Conscience des émotions",
               "competences_specifiques": [
                 {
                   "id": "E1.1",
-                  "nom": "Comprendre les émotions",
-                  "indicateurs": [
-                    "Connaître la nature des émotions",
-                    "Comprendre la fonction d'information"
-                  ]
+                  "nom": "Comprendre pourquoi je réagis comme ça",
+                  "nom_officiel": "Comprendre les émotions",
+                  "indicateurs": ["J'ai compris pourquoi j'étais énervé", "J'ai analysé ma réaction"]
                 },
                 {
                   "id": "E1.2",
-                  "nom": "Identifier ses émotions",
-                  "indicateurs": [
-                    "Percevoir l’expérience émotionnelle",
-                    "Nommer l’émotion avec un vocabulaire adapté"
-                  ]
+                  "nom": "Mettre un nom sur ce que je ressens",
+                  "nom_officiel": "Identifier ses émotions",
+                  "indicateurs": ["J'ai su dire que j'étais triste/joyeux", "J'ai identifié mon stress"]
                 }
               ]
             }
@@ -107,40 +95,36 @@
     },
     {
       "id": "SOC",
-      "nom": "Compétences Sociales",
+      "nom": "Mes Relations",
+      "nom_officiel": "Compétences Sociales",
       "couleur": "#2ecc71",
       "phases": [
         {
           "id": 1,
-          "nom": "Phase 1 : Développer des relations constructives",
+          "nom": "Bien m'entendre avec les autres",
           "competences_generales": [
             {
               "id": "S1",
-              "nom": "Relations constructives",
+              "nom": "Avoir de bonnes relations",
+              "nom_officiel": "Relations constructives",
               "competences_specifiques": [
                 {
                   "id": "S1.1",
-                  "nom": "Communiquer de façon efficace",
-                  "indicateurs": [
-                    "Identifier les obstacles à la communication",
-                    "Développer des attitudes soutenantes"
-                  ]
+                  "nom": "M'exprimer calmement et clairement",
+                  "nom_officiel": "Communiquer de façon efficace",
+                  "indicateurs": ["J'ai parlé sans agressivité", "Je me suis fait comprendre"]
                 },
                 {
                   "id": "S1.2",
-                  "nom": "Communiquer de façon empathique",
-                  "indicateurs": [
-                    "Écouter de façon empathique",
-                    "Parler de façon empathique"
-                  ]
+                  "nom": "Écouter et comprendre les autres",
+                  "nom_officiel": "Communiquer de façon empathique",
+                  "indicateurs": ["J'ai écouté sans couper la parole", "J'ai compris le point de vue de l'autre"]
                 },
                 {
                   "id": "S1.3",
-                  "nom": "Développer des liens prosociaux",
-                  "indicateurs": [
-                    "Maintenir des liens de qualité",
-                    "Exprimer de la gratitude"
-                  ]
+                  "nom": "Être solidaire et respectueux",
+                  "nom_officiel": "Développer des liens prosociaux",
+                  "indicateurs": ["J'ai aidé quelqu'un", "J'ai remercié ou encouragé"]
                 }
               ]
             }
