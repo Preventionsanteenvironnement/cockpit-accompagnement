@@ -1,13 +1,23 @@
-// admin-auth.js - Gestion des autorisations du Cockpit
+// admin-auth.js - Gestion des autorisations du Cockpit (Version Corrigée)
 
 async function chargerDonneesAutorisations() {
     try {
-        // 1. Chargement de votre base globale (DataLife)
-        // Note : Ajustez l'URL vers votre fichier DataLife réel
-        const responseDataLife = await fetch('URL_DE_VOTRE_FICHIER_DATALIFE.json');
+        // --- CORRECTION ICI ---
+        // On va chercher le fichier DataLife directement sur ton site PSE existant.
+        // NOTE : J'ai supposé que le fichier s'appelle "DataLife.json" et qu'il est dans le dossier "data".
+        // Si il s'appelle "DataEleves.json", modifie juste la fin de cette ligne.
+        const urlDataLife = 'https://preventionsanteenvironnement.github.io/PSE/data/DataLife.json';
+        
+        const responseDataLife = await fetch(urlDataLife);
+        
+        if (!responseDataLife.ok) {
+            throw new Error(`Impossible de lire le fichier DataLife sur PSE (Erreur ${responseDataLife.status})`);
+        }
+        
         const dataLife = await responseDataLife.json();
+        // ----------------------
 
-        // 2. Chargement du fichier d'autorisations spécifique
+        // 2. Chargement du fichier d'autorisations spécifique (local au cockpit)
         const responseAuth = await fetch('data/config/autorisations.json');
         const dataAuth = await responseAuth.json();
 
@@ -18,8 +28,11 @@ async function chargerDonneesAutorisations() {
         
         // 3. Boucle sur tous les élèves de DataLife pour vérifier leur statut
         dataLife.forEach(eleve => {
-            const code = eleve.code; // Adapter selon votre clé 'code' ou 'id'
-            const estAutorise = dataAuth.ELEVES_AUTORISES[code] ? dataAuth.ELEVES_AUTORISES[code].autorise : false;
+            // Sécurité : on s'assure qu'il y a bien un code
+            const code = eleve.code || eleve.id; 
+            if (!code) return;
+
+            const estAutorise = dataAuth.ELEVES_AUTORISES && dataAuth.ELEVES_AUTORISES[code] ? dataAuth.ELEVES_AUTORISES[code].autorise : false;
 
             const ligne = `
                 <tr>
@@ -44,15 +57,39 @@ async function chargerDonneesAutorisations() {
 
     } catch (error) {
         console.error("Erreur de chargement :", error);
-        document.getElementById('status-message').innerHTML = "Erreur de connexion aux fichiers de données.";
-        document.getElementById('status-message').classList.replace('alert-info', 'alert-danger');
+        const msgDiv = document.getElementById('status-message');
+        msgDiv.innerHTML = `<strong>Erreur :</strong> Impossible de charger les données.<br>Vérifiez que le fichier DataLife existe bien à l'adresse :<br><small>https://preventionsanteenvironnement.github.io/PSE/data/DataLife.json</small>`;
+        msgDiv.classList.replace('alert-info', 'alert-danger');
     }
 }
 
-// Fonction de basculement (sera liée à Firebase dans l'étape suivante)
-function basculerAutorisation(code, statutActuel) {
-    console.log(`Action pour ${code} : changer vers ${!statutActuel}`);
-    alert(`Action enregistrée pour ${code}. La synchronisation Firebase sera activée à l'étape suivante.`);
+// Fonction pour activer/désactiver l'accès en temps réel dans Firebase
+async function basculerAutorisation(code, statutActuel) {
+    const nouveauStatut = !statutActuel;
+    const confirmMsg = nouveauStatut 
+        ? `Autoriser l'élève ${code} pour l'accompagnement ?` 
+        : `Révoquer l'accès pour l'élève ${code} ?`;
+
+    if (confirm(confirmMsg)) {
+        try {
+            // Chemin dans votre base Firebase
+            const dbRef = firebase.database().ref(`accompagnement/autorisations/${code}`);
+            
+            await dbRef.set({
+                autorise: nouveauStatut,
+                date_modification: new Date().toISOString(),
+                parcours: "Standard"
+            });
+
+            alert("Mise à jour réussie !");
+            // On recharge les données pour actualiser l'affichage
+            chargerDonneesAutorisations(); 
+            
+        } catch (error) {
+            console.error("Erreur Firebase :", error);
+            alert("Erreur lors de la mise à jour des droits.");
+        }
+    }
 }
 
 // Lancement au chargement de la page
