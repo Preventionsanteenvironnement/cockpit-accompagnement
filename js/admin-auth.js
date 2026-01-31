@@ -1,42 +1,41 @@
-// admin-auth.js - Gestion des autorisations du Cockpit (Version Corrigée)
+// admin-auth.js - Gestion des autorisations du Cockpit (Version Compatible BDD_ELEVES)
 
 async function chargerDonneesAutorisations() {
     try {
-        // --- CORRECTION ICI ---
-        // On va chercher le fichier DataLife directement sur ton site PSE existant.
-        // NOTE : J'ai supposé que le fichier s'appelle "DataLife.json" et qu'il est dans le dossier "data".
-        // Si il s'appelle "DataEleves.json", modifie juste la fin de cette ligne.
-        const urlDataLife = 'https://preventionsanteenvironnement.github.io/PSE/data/DataLife.json';
+        const listeEleves = document.getElementById('liste-eleves');
+        const statusMsg = document.getElementById('status-message');
         
-        const responseDataLife = await fetch(urlDataLife);
-        
-        if (!responseDataLife.ok) {
-            throw new Error(`Impossible de lire le fichier DataLife sur PSE (Erreur ${responseDataLife.status})`);
+        // 1. Chargement dynamique du script BDD Élèves depuis le site PSE
+        if (typeof window.BDD_ELEVES === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                // URL exacte vue sur votre capture
+                script.src = 'https://preventionsanteenvironnement.github.io/PSE/data_eleves.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error("Impossible de charger data_eleves.js depuis le site PSE"));
+                document.head.appendChild(script);
+            });
         }
-        
-        const dataLife = await responseDataLife.json();
-        // ----------------------
+
+        const dataLife = window.BDD_ELEVES; // On récupère la variable globale du fichier chargé
+        console.log("Élèves chargés :", dataLife.length);
 
         // 2. Chargement du fichier d'autorisations spécifique (local au cockpit)
         const responseAuth = await fetch('data/config/autorisations.json');
         const dataAuth = await responseAuth.json();
 
-        const listeEleves = document.getElementById('liste-eleves');
-        const statusMsg = document.getElementById('status-message');
-
         listeEleves.innerHTML = ''; // On vide le tableau
         
-        // 3. Boucle sur tous les élèves de DataLife pour vérifier leur statut
+        // 3. Boucle sur tous les élèves
         dataLife.forEach(eleve => {
-            // Sécurité : on s'assure qu'il y a bien un code
-            const code = eleve.code || eleve.id; 
+            const code = eleve.userCode; // Votre fichier utilise 'userCode' et non 'code'
             if (!code) return;
 
             const estAutorise = dataAuth.ELEVES_AUTORISES && dataAuth.ELEVES_AUTORISES[code] ? dataAuth.ELEVES_AUTORISES[code].autorise : false;
 
             const ligne = `
                 <tr>
-                    <td><strong>${code}</strong></td>
+                    <td><strong>${code}</strong> <small class="text-muted">(${eleve.classe})</small></td>
                     <td>
                         <span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">
                             ${estAutorise ? 'Autorisé (VIP)' : 'Non autorisé'}
@@ -58,7 +57,7 @@ async function chargerDonneesAutorisations() {
     } catch (error) {
         console.error("Erreur de chargement :", error);
         const msgDiv = document.getElementById('status-message');
-        msgDiv.innerHTML = `<strong>Erreur :</strong> Impossible de charger les données.<br>Vérifiez que le fichier DataLife existe bien à l'adresse :<br><small>https://preventionsanteenvironnement.github.io/PSE/data/DataLife.json</small>`;
+        msgDiv.innerHTML = `<strong>Erreur :</strong> ${error.message}<br>Vérifiez l'URL de data_eleves.js`;
         msgDiv.classList.replace('alert-info', 'alert-danger');
     }
 }
@@ -72,7 +71,6 @@ async function basculerAutorisation(code, statutActuel) {
 
     if (confirm(confirmMsg)) {
         try {
-            // Chemin dans votre base Firebase
             const dbRef = firebase.database().ref(`accompagnement/autorisations/${code}`);
             
             await dbRef.set({
@@ -82,7 +80,6 @@ async function basculerAutorisation(code, statutActuel) {
             });
 
             alert("Mise à jour réussie !");
-            // On recharge les données pour actualiser l'affichage
             chargerDonneesAutorisations(); 
             
         } catch (error) {
@@ -92,5 +89,4 @@ async function basculerAutorisation(code, statutActuel) {
     }
 }
 
-// Lancement au chargement de la page
 window.onload = chargerDonneesAutorisations;
