@@ -1,11 +1,10 @@
-// admin-auth.js - Version V3 : Supervision Temps Réel
-// Avec bouton "Voir" (Œil) et Graphique intégré
+// admin-auth.js - Version V4 : Supervision Complète (Avec Preuves)
 
 let allEleves = [];
 let authData = {};
-let currentModalChart = null; // Pour stocker le graphique actif
+let currentModalChart = null;
 
-// Données du référentiel (Hardcodées pour éviter tout bug de chargement)
+// Données du référentiel
 const REF_DATA = { "axes": [ { "id": "COG", "nom": "Compétences Cognitives", "phases": [ { "id": 1, "competences_generales": [ { "id": "C1", "nom": "Conscience de soi", "competences_specifiques": [ { "id": "C1.1", "nom": "Accroître sa connaissance de soi" }, { "id": "C1.2", "nom": "Savoir penser de façon critique" }, { "id": "C1.3", "nom": "Connaître ses valeurs et besoins" }, { "id": "C1.4", "nom": "Prendre des décisions constructives" }, { "id": "C1.5", "nom": "S’auto-évaluer positivement" }, { "id": "C1.6", "nom": "Renforcer sa pleine attention" } ] } ] } ] }, { "id": "EMO", "nom": "Compétences Émotionnelles", "phases": [ { "id": 1, "competences_generales": [ { "id": "E1", "nom": "Conscience des émotions", "competences_specifiques": [ { "id": "E1.1", "nom": "Comprendre les émotions" }, { "id": "E1.2", "nom": "Identifier ses émotions" } ] } ] } ] }, { "id": "SOC", "nom": "Compétences Sociales", "phases": [ { "id": 1, "competences_generales": [ { "id": "S1", "nom": "Relations constructives", "competences_specifiques": [ { "id": "S1.1", "nom": "Communiquer de façon efficace" }, { "id": "S1.2", "nom": "Communiquer de façon empathique" }, { "id": "S1.3", "nom": "Développer des liens prosociaux" } ] } ] } ] } ] };
 
 async function chargerDonneesAutorisations() {
@@ -18,19 +17,19 @@ async function chargerDonneesAutorisations() {
                 const script = document.createElement('script');
                 script.src = 'https://preventionsanteenvironnement.github.io/PSE/data_eleves.js';
                 script.onload = resolve;
-                script.onerror = () => reject(new Error("Erreur chargement BDD Élèves"));
+                script.onerror = () => reject(new Error("Erreur chargement BDD"));
                 document.head.appendChild(script);
             });
         }
         allEleves = window.BDD_ELEVES; 
 
-        // 2. Chargement config locale (si besoin)
+        // 2. Config locale
         try {
             const responseAuth = await fetch('data/config/autorisations.json');
             authData = await responseAuth.json();
-        } catch(e) { console.log("Pas de config locale, pas grave."); }
+        } catch(e) { console.log("Pas de config locale."); }
 
-        // 3. Init Filtres
+        // 3. Init
         initialiserFiltres();
         filtrerTableau();
         statusMsg.style.display = 'none';
@@ -42,7 +41,7 @@ async function chargerDonneesAutorisations() {
 
     } catch (error) {
         console.error("Erreur :", error);
-        document.getElementById('status-message').innerText = "Erreur de chargement.";
+        document.getElementById('status-message').innerText = "Erreur chargement.";
     }
 }
 
@@ -94,22 +93,11 @@ function afficherTableau(liste) {
 
         const ligne = `
             <tr>
-                <td>
-                    <strong>${code}</strong> <small class="text-muted">(${eleve.classe})</small>
-                </td>
-                <td>
-                    <span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">
-                        ${estAutorise ? 'Autorisé' : 'Bloqué'}
-                    </span>
-                </td>
+                <td><strong>${code}</strong> <small class="text-muted">(${eleve.classe})</small></td>
+                <td><span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">${estAutorise ? 'Autorisé' : 'Bloqué'}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-primary me-2" onclick="voirEleve('${code}')" title="Voir le profil">
-                        👁️ Voir
-                    </button>
-                    <button class="btn btn-sm ${estAutorise ? 'btn-outline-danger' : 'btn-primary'}" 
-                            onclick="basculerAutorisation('${code}', ${estAutorise})">
-                        ${estAutorise ? 'Retirer' : 'Activer'}
-                    </button>
+                    <button class="btn btn-sm btn-outline-primary me-2" onclick="voirEleve('${code}')">👁️ Voir</button>
+                    <button class="btn btn-sm ${estAutorise ? 'btn-outline-danger' : 'btn-primary'}" onclick="basculerAutorisation('${code}', ${estAutorise})">${estAutorise ? 'Retirer' : 'Activer'}</button>
                 </td>
             </tr>
         `;
@@ -117,37 +105,25 @@ function afficherTableau(liste) {
     });
 }
 
-// --- PARTIE 1 : GESTION AUTORISATION ---
 async function basculerAutorisation(code, statutActuel) {
     const nouveauStatut = !statutActuel;
     if (!authData.ELEVES_AUTORISES) authData.ELEVES_AUTORISES = {};
     if (!authData.ELEVES_AUTORISES[code]) authData.ELEVES_AUTORISES[code] = {};
     authData.ELEVES_AUTORISES[code].autorise = nouveauStatut;
     filtrerTableau(); 
-
     try {
-        await firebase.database().ref(`accompagnement/autorisations/${code}`).update({
-            autorise: nouveauStatut,
-            date_modif: new Date().toISOString()
-        });
+        await firebase.database().ref(`accompagnement/autorisations/${code}`).update({ autorise: nouveauStatut });
     } catch (e) { alert("Erreur Firebase: " + e); }
 }
 
-// --- PARTIE 2 : SUPERVISION (LE COEUR DU SUJET) ---
+// --- PARTIE SUPERVISION ---
 window.voirEleve = function(code) {
-    // 1. Ouvrir la modale
     const modal = new bootstrap.Modal(document.getElementById('modalEleve'));
     document.getElementById('modal-eleve-titre').innerText = code;
     modal.show();
 
-    // 2. Écouter Firebase pour CET élève en temps réel
     const dbRef = firebase.database().ref(`accompagnement/eleves/${code}`);
-    
-    // On coupe l'écoute quand on ferme la modale pour économiser
-    const modalEl = document.getElementById('modalEleve');
-    modalEl.addEventListener('hidden.bs.modal', function () {
-        dbRef.off(); 
-    }, { once: true });
+    document.getElementById('modalEleve').addEventListener('hidden.bs.modal', function () { dbRef.off(); }, { once: true });
 
     dbRef.on('value', (snapshot) => {
         const data = snapshot.val() || { competences_validees: {} };
@@ -159,13 +135,12 @@ window.voirEleve = function(code) {
 function mettreAJourGraphiqueAdmin(userData) {
     const scores = { "COG": 0, "EMO": 0, "SOC": 0 };
     const totals = { "COG": 0, "EMO": 0, "SOC": 0 };
-
     REF_DATA.axes.forEach(axe => {
         axe.phases.forEach(phase => {
             phase.competences_generales.forEach(cg => {
                 cg.competences_specifiques.forEach(cs => {
                     totals[axe.id]++;
-                    if (userData.competences_validees && userData.competences_validees[cs.id]) {
+                    if (userData.competences_validees && userData.competences_validees[cs.id] && userData.competences_validees[cs.id].valide) {
                         scores[axe.id]++;
                     }
                 });
@@ -180,7 +155,6 @@ function mettreAJourGraphiqueAdmin(userData) {
     ];
 
     const ctx = document.getElementById('adminRadarChart').getContext('2d');
-    
     if (currentModalChart) {
         currentModalChart.data.datasets[0].data = dataPercent;
         currentModalChart.update();
@@ -197,14 +171,12 @@ function mettreAJourGraphiqueAdmin(userData) {
                     borderWidth: 2
                 }]
             },
-            options: {
-                scales: { r: { suggestedMin: 0, suggestedMax: 100 } },
-                plugins: { legend: { display: false } }
-            }
+            options: { scales: { r: { suggestedMin: 0, suggestedMax: 100 } }, plugins: { legend: { display: false } } }
         });
     }
 }
 
+// C'est ICI que ça change : on affiche les PREUVES
 function afficherListeCompetences(validees) {
     const container = document.getElementById('modal-liste-competences');
     container.innerHTML = '';
@@ -214,16 +186,28 @@ function afficherListeCompetences(validees) {
         axe.phases.forEach(phase => {
             phase.competences_generales.forEach(cg => {
                 cg.competences_specifiques.forEach(cs => {
-                    if (validees[cs.id]) {
+                    
+                    // On récupère l'info complète (niveau, preuve...)
+                    const info = validees[cs.id];
+                    
+                    if (info && info.valide) {
                         vide = false;
+                        
+                        // Création des étoiles
+                        const niveau = info.niveau || 1;
+                        const etoiles = "⭐".repeat(niveau);
+                        const commentaire = info.preuve || "Pas de commentaire";
+
                         const item = document.createElement('div');
-                        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                        item.className = 'list-group-item list-group-item-action mb-2 border rounded';
                         item.innerHTML = `
-                            <div>
+                            <div class="d-flex justify-content-between align-items-center">
                                 <strong>${cs.nom}</strong>
-                                <br><small class="text-muted">${cg.nom}</small>
+                                <span class="badge bg-primary rounded-pill">${etoiles}</span>
                             </div>
-                            <span class="badge bg-success rounded-pill">Validé</span>
+                            <div class="mt-2 small text-muted fst-italic bg-light p-2 rounded">
+                                " ${commentaire} "
+                            </div>
                         `;
                         container.appendChild(item);
                     }
@@ -232,9 +216,7 @@ function afficherListeCompetences(validees) {
         });
     });
 
-    if (vide) {
-        container.innerHTML = '<div class="text-center p-3 text-muted">Aucune compétence validée pour l\'instant.</div>';
-    }
+    if (vide) container.innerHTML = '<div class="text-center p-3 text-muted">Aucune compétence validée.</div>';
 }
 
 window.onload = chargerDonneesAutorisations;
