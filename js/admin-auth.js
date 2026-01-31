@@ -4,35 +4,48 @@ let allEleves = [];
 let authData = {};
 let currentModalChart = null;
 
-// Helper pour nettoyer les IDs comme sur l'app élève
+// Helper pour nettoyer les IDs comme sur l'app élève (remplace points par tirets)
 const sanitize = (id) => id.replace(/\./g, '_');
 
+// Données du référentiel (Hardcodées pour la fiabilité)
 const REF_DATA = { "axes": [ { "id": "COG", "nom": "Compétences Cognitives", "phases": [ { "id": 1, "competences_generales": [ { "id": "C1", "nom": "Conscience de soi", "competences_specifiques": [ { "id": "C1.1", "nom": "Accroître sa connaissance de soi" }, { "id": "C1.2", "nom": "Savoir penser de façon critique" }, { "id": "C1.3", "nom": "Connaître ses valeurs et besoins" }, { "id": "C1.4", "nom": "Prendre des décisions constructives" }, { "id": "C1.5", "nom": "S’auto-évaluer positivement" }, { "id": "C1.6", "nom": "Renforcer sa pleine attention" } ] } ] } ] }, { "id": "EMO", "nom": "Compétences Émotionnelles", "phases": [ { "id": 1, "competences_generales": [ { "id": "E1", "nom": "Conscience des émotions", "competences_specifiques": [ { "id": "E1.1", "nom": "Comprendre les émotions" }, { "id": "E1.2", "nom": "Identifier ses émotions" } ] } ] } ] }, { "id": "SOC", "nom": "Compétences Sociales", "phases": [ { "id": 1, "competences_generales": [ { "id": "S1", "nom": "Relations constructives", "competences_specifiques": [ { "id": "S1.1", "nom": "Communiquer de façon efficace" }, { "id": "S1.2", "nom": "Communiquer de façon empathique" }, { "id": "S1.3", "nom": "Développer des liens prosociaux" } ] } ] } ] } ] };
 
 async function chargerDonneesAutorisations() {
     try {
+        const statusMsg = document.getElementById('status-message');
+        
+        // 1. Chargement BDD Élèves
         if (typeof window.BDD_ELEVES === 'undefined') {
             await new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = 'https://preventionsanteenvironnement.github.io/PSE/data_eleves.js';
                 script.onload = resolve;
+                script.onerror = () => reject(new Error("Erreur chargement BDD"));
                 document.head.appendChild(script);
             });
         }
         allEleves = window.BDD_ELEVES; 
+
+        // 2. Config locale
         try {
             const responseAuth = await fetch('data/config/autorisations.json');
             authData = await responseAuth.json();
-        } catch(e) {}
+        } catch(e) { console.log("Pas de config locale."); }
 
+        // 3. Init
         initialiserFiltres();
         filtrerTableau();
-        document.getElementById('status-message').style.display = 'none';
+        if(statusMsg) statusMsg.style.display = 'none';
 
+        // 4. Écouteurs
         document.getElementById('search-input').addEventListener('input', filtrerTableau);
         document.getElementById('filter-classe').addEventListener('change', filtrerTableau);
         document.getElementById('filter-status').addEventListener('change', filtrerTableau);
-    } catch (error) { console.error(error); }
+
+    } catch (error) {
+        console.error("Erreur :", error);
+        if(document.getElementById('status-message')) document.getElementById('status-message').innerText = "Erreur chargement.";
+    }
 }
 
 function initialiserFiltres() {
@@ -106,6 +119,7 @@ async function basculerAutorisation(code, statutActuel) {
     } catch (e) { alert("Erreur Firebase: " + e); }
 }
 
+// --- PARTIE SUPERVISION ---
 window.voirEleve = function(code) {
     const modal = new bootstrap.Modal(document.getElementById('modalEleve'));
     document.getElementById('modal-eleve-titre').innerText = code;
@@ -129,7 +143,7 @@ function mettreAJourGraphiqueAdmin(userData) {
             phase.competences_generales.forEach(cg => {
                 cg.competences_specifiques.forEach(cs => {
                     totals[axe.id]++;
-                    // CORRECTION ICI : On utilise sanitize(cs.id) pour lire
+                    // CORRECTION ICI : On utilise sanitize(cs.id) pour lire C1_1
                     const safeId = sanitize(cs.id);
                     if (userData.competences_validees && userData.competences_validees[safeId] && userData.competences_validees[safeId].valide) {
                         scores[axe.id]++;
@@ -154,7 +168,13 @@ function mettreAJourGraphiqueAdmin(userData) {
             type: 'radar',
             data: {
                 labels: ['Cognitif', 'Social', 'Émotionnel'],
-                datasets: [{ label: 'Niveau Élève', data: dataPercent, backgroundColor: 'rgba(54, 162, 235, 0.2)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 2 }]
+                datasets: [{
+                    label: 'Niveau Élève',
+                    data: dataPercent,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2
+                }]
             },
             options: { scales: { r: { suggestedMin: 0, suggestedMax: 100 } }, plugins: { legend: { display: false } } }
         });
@@ -164,18 +184,21 @@ function mettreAJourGraphiqueAdmin(userData) {
 function afficherListeCompetences(validees) {
     const container = document.getElementById('modal-liste-competences');
     container.innerHTML = '';
+    
     let vide = true;
     REF_DATA.axes.forEach(axe => {
         axe.phases.forEach(phase => {
             phase.competences_generales.forEach(cg => {
                 cg.competences_specifiques.forEach(cs => {
                     
-                    // CORRECTION ICI AUSSI : Lecture avec ID corrigé
+                    // CORRECTION ICI AUSSI : On cherche la clé avec tiret (C1_1)
                     const safeId = sanitize(cs.id);
                     const info = validees[safeId];
                     
                     if (info && info.valide) {
                         vide = false;
+                        
+                        // Création des étoiles
                         const niveau = info.niveau || 1;
                         const etoiles = "⭐".repeat(niveau);
                         const commentaire = info.preuve || "Pas de commentaire";
@@ -187,7 +210,9 @@ function afficherListeCompetences(validees) {
                                 <strong>${cs.nom}</strong>
                                 <span class="badge bg-primary rounded-pill">${etoiles}</span>
                             </div>
-                            <div class="mt-2 small text-muted fst-italic bg-light p-2 rounded">" ${commentaire} "</div>
+                            <div class="mt-2 small text-muted fst-italic bg-light p-2 rounded">
+                                " ${commentaire} "
+                            </div>
                         `;
                         container.appendChild(item);
                     }
