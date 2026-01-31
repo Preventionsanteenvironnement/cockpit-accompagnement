@@ -1,240 +1,110 @@
-// admin-auth.js - Version V3 : Supervision Temps Réel
-// Avec bouton "Voir" (Œil) et Graphique intégré
-
-let allEleves = [];
-let authData = {};
-let currentModalChart = null; // Pour stocker le graphique actif
-
-// Données du référentiel (Hardcodées pour éviter tout bug de chargement)
-const REF_DATA = { "axes": [ { "id": "COG", "nom": "Compétences Cognitives", "phases": [ { "id": 1, "competences_generales": [ { "id": "C1", "nom": "Conscience de soi", "competences_specifiques": [ { "id": "C1.1", "nom": "Accroître sa connaissance de soi" }, { "id": "C1.2", "nom": "Savoir penser de façon critique" }, { "id": "C1.3", "nom": "Connaître ses valeurs et besoins" }, { "id": "C1.4", "nom": "Prendre des décisions constructives" }, { "id": "C1.5", "nom": "S’auto-évaluer positivement" }, { "id": "C1.6", "nom": "Renforcer sa pleine attention" } ] } ] } ] }, { "id": "EMO", "nom": "Compétences Émotionnelles", "phases": [ { "id": 1, "competences_generales": [ { "id": "E1", "nom": "Conscience des émotions", "competences_specifiques": [ { "id": "E1.1", "nom": "Comprendre les émotions" }, { "id": "E1.2", "nom": "Identifier ses émotions" } ] } ] } ] }, { "id": "SOC", "nom": "Compétences Sociales", "phases": [ { "id": 1, "competences_generales": [ { "id": "S1", "nom": "Relations constructives", "competences_specifiques": [ { "id": "S1.1", "nom": "Communiquer de façon efficace" }, { "id": "S1.2", "nom": "Communiquer de façon empathique" }, { "id": "S1.3", "nom": "Développer des liens prosociaux" } ] } ] } ] } ] };
-
-async function chargerDonneesAutorisations() {
-    try {
-        const statusMsg = document.getElementById('status-message');
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cockpit Accompagnement - Pilotage CPS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary-color: #2c3e50; --accent-color: #e67e22; }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .navbar { background-color: var(--primary-color); }
+        .filter-bar { background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 10px; margin-bottom: 20px; }
         
-        // 1. Chargement BDD Élèves
-        if (typeof window.BDD_ELEVES === 'undefined') {
-            await new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://preventionsanteenvironnement.github.io/PSE/data_eleves.js';
-                script.onload = resolve;
-                script.onerror = () => reject(new Error("Erreur chargement BDD Élèves"));
-                document.head.appendChild(script);
-            });
-        }
-        allEleves = window.BDD_ELEVES; 
+        /* Style de la modale élève */
+        .modal-header { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); color: white; }
+        .btn-close { filter: invert(1); }
+    </style>
+</head>
+<body>
 
-        // 2. Chargement config locale (si besoin)
-        try {
-            const responseAuth = await fetch('data/config/autorisations.json');
-            authData = await responseAuth.json();
-        } catch(e) { console.log("Pas de config locale, pas grave."); }
+<nav class="navbar navbar-dark mb-4">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">🚀 Cockpit Accompagnement</span>
+    </div>
+</nav>
 
-        // 3. Init Filtres
-        initialiserFiltres();
-        filtrerTableau();
-        statusMsg.style.display = 'none';
+<div class="container">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Supervision des Élèves</h5>
+            
+            <div id="status-message" class="alert alert-info">Chargement des données...</div>
+            
+            <div class="row g-2 align-items-center filter-bar shadow-sm">
+                <div class="col-md-4">
+                    <input type="text" id="search-input" class="form-control" placeholder="🔍 Rechercher (Nom, Code)...">
+                </div>
+                <div class="col-md-3">
+                    <select id="filter-classe" class="form-select"><option value="ALL">Toutes les classes</option></select>
+                </div>
+                <div class="col-md-3">
+                    <select id="filter-status" class="form-select">
+                        <option value="ALL">Tous les statuts</option>
+                        <option value="AUTHORIZED">✅ Autorisés</option>
+                        <option value="UNAUTHORIZED">⛔ Bloqués</option>
+                    </select>
+                </div>
+                <div class="col-md-2 text-end">
+                    <span class="badge bg-secondary fs-6" id="counter-display">-- élèves</span>
+                </div>
+            </div>
 
-        // 4. Écouteurs
-        document.getElementById('search-input').addEventListener('input', filtrerTableau);
-        document.getElementById('filter-classe').addEventListener('change', filtrerTableau);
-        document.getElementById('filter-status').addEventListener('change', filtrerTableau);
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="table-eleves">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Élève</th>
+                            <th>État</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="liste-eleves"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
-    } catch (error) {
-        console.error("Erreur :", error);
-        document.getElementById('status-message').innerText = "Erreur de chargement.";
-    }
-}
+<div class="modal fade" id="modalEleve" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détail Élève : <span id="modal-eleve-titre">--</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="row">
+                    <div class="col-md-6 text-center">
+                        <h6 class="text-muted">Progression en temps réel</h6>
+                        <div style="max-height: 300px; position: relative;">
+                            <canvas id="adminRadarChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Dernières validations</h6>
+                        <div id="modal-liste-competences" class="list-group list-group-flush small" style="max-height: 300px; overflow-y: auto;">
+                            <div class="text-center p-3 text-muted">Aucune donnée...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-function initialiserFiltres() {
-    const classes = [...new Set(allEleves.map(e => e.classe))].sort();
-    const selectClasse = document.getElementById('filter-classe');
-    selectClasse.innerHTML = '<option value="ALL">Toutes les classes</option>';
-    classes.forEach(cls => {
-        const option = document.createElement('option');
-        option.value = cls; option.innerText = cls;
-        selectClasse.appendChild(option);
-    });
-}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
-function filtrerTableau() {
-    const searchText = document.getElementById('search-input').value.toLowerCase();
-    const selectedClasse = document.getElementById('filter-classe').value;
-    const selectedStatus = document.getElementById('filter-status').value;
-
-    const resultats = allEleves.filter(eleve => {
-        const code = eleve.userCode;
-        const estAutorise = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) ? authData.ELEVES_AUTORISES[code].autorise : false;
-        
-        const matchSearch = code.toLowerCase().includes(searchText) || eleve.classe.toLowerCase().includes(searchText);
-        const matchClasse = (selectedClasse === "ALL") || (eleve.classe === selectedClasse);
-        let matchStatus = true;
-        if (selectedStatus === "AUTHORIZED") matchStatus = estAutorise;
-        if (selectedStatus === "UNAUTHORIZED") matchStatus = !estAutorise;
-
-        return matchSearch && matchClasse && matchStatus;
-    });
-    afficherTableau(resultats);
-}
-
-function afficherTableau(liste) {
-    const tbody = document.getElementById('liste-eleves');
-    const counter = document.getElementById('counter-display');
-    tbody.innerHTML = '';
-    counter.innerText = `${liste.length} élèves`;
-
-    if (liste.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Aucun résultat.</td></tr>';
-        return;
-    }
-
-    liste.forEach(eleve => {
-        const code = eleve.userCode;
-        const estAutorise = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) ? authData.ELEVES_AUTORISES[code].autorise : false;
-
-        const ligne = `
-            <tr>
-                <td>
-                    <strong>${code}</strong> <small class="text-muted">(${eleve.classe})</small>
-                </td>
-                <td>
-                    <span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">
-                        ${estAutorise ? 'Autorisé' : 'Bloqué'}
-                    </span>
-                </td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-primary me-2" onclick="voirEleve('${code}')" title="Voir le profil">
-                        👁️ Voir
-                    </button>
-                    <button class="btn btn-sm ${estAutorise ? 'btn-outline-danger' : 'btn-primary'}" 
-                            onclick="basculerAutorisation('${code}', ${estAutorise})">
-                        ${estAutorise ? 'Retirer' : 'Activer'}
-                    </button>
-                </td>
-            </tr>
-        `;
-        tbody.innerHTML += ligne;
-    });
-}
-
-// --- PARTIE 1 : GESTION AUTORISATION ---
-async function basculerAutorisation(code, statutActuel) {
-    const nouveauStatut = !statutActuel;
-    if (!authData.ELEVES_AUTORISES) authData.ELEVES_AUTORISES = {};
-    if (!authData.ELEVES_AUTORISES[code]) authData.ELEVES_AUTORISES[code] = {};
-    authData.ELEVES_AUTORISES[code].autorise = nouveauStatut;
-    filtrerTableau(); 
-
-    try {
-        await firebase.database().ref(`accompagnement/autorisations/${code}`).update({
-            autorise: nouveauStatut,
-            date_modif: new Date().toISOString()
-        });
-    } catch (e) { alert("Erreur Firebase: " + e); }
-}
-
-// --- PARTIE 2 : SUPERVISION (LE COEUR DU SUJET) ---
-window.voirEleve = function(code) {
-    // 1. Ouvrir la modale
-    const modal = new bootstrap.Modal(document.getElementById('modalEleve'));
-    document.getElementById('modal-eleve-titre').innerText = code;
-    modal.show();
-
-    // 2. Écouter Firebase pour CET élève en temps réel
-    const dbRef = firebase.database().ref(`accompagnement/eleves/${code}`);
-    
-    // On coupe l'écoute quand on ferme la modale pour économiser
-    const modalEl = document.getElementById('modalEleve');
-    modalEl.addEventListener('hidden.bs.modal', function () {
-        dbRef.off(); 
-    }, { once: true });
-
-    dbRef.on('value', (snapshot) => {
-        const data = snapshot.val() || { competences_validees: {} };
-        mettreAJourGraphiqueAdmin(data);
-        afficherListeCompetences(data.competences_validees || {});
-    });
-};
-
-function mettreAJourGraphiqueAdmin(userData) {
-    const scores = { "COG": 0, "EMO": 0, "SOC": 0 };
-    const totals = { "COG": 0, "EMO": 0, "SOC": 0 };
-
-    REF_DATA.axes.forEach(axe => {
-        axe.phases.forEach(phase => {
-            phase.competences_generales.forEach(cg => {
-                cg.competences_specifiques.forEach(cs => {
-                    totals[axe.id]++;
-                    if (userData.competences_validees && userData.competences_validees[cs.id]) {
-                        scores[axe.id]++;
-                    }
-                });
-            });
-        });
-    });
-
-    const dataPercent = [
-        totals["COG"] ? Math.round((scores["COG"] / totals["COG"]) * 100) : 0,
-        totals["SOC"] ? Math.round((scores["SOC"] / totals["SOC"]) * 100) : 0,
-        totals["EMO"] ? Math.round((scores["EMO"] / totals["EMO"]) * 100) : 0
-    ];
-
-    const ctx = document.getElementById('adminRadarChart').getContext('2d');
-    
-    if (currentModalChart) {
-        currentModalChart.data.datasets[0].data = dataPercent;
-        currentModalChart.update();
-    } else {
-        currentModalChart = new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: ['Cognitif', 'Social', 'Émotionnel'],
-                datasets: [{
-                    label: 'Niveau Élève',
-                    data: dataPercent,
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                scales: { r: { suggestedMin: 0, suggestedMax: 100 } },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-}
-
-function afficherListeCompetences(validees) {
-    const container = document.getElementById('modal-liste-competences');
-    container.innerHTML = '';
-    
-    let vide = true;
-    REF_DATA.axes.forEach(axe => {
-        axe.phases.forEach(phase => {
-            phase.competences_generales.forEach(cg => {
-                cg.competences_specifiques.forEach(cs => {
-                    if (validees[cs.id]) {
-                        vide = false;
-                        const item = document.createElement('div');
-                        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                        item.innerHTML = `
-                            <div>
-                                <strong>${cs.nom}</strong>
-                                <br><small class="text-muted">${cg.nom}</small>
-                            </div>
-                            <span class="badge bg-success rounded-pill">Validé</span>
-                        `;
-                        container.appendChild(item);
-                    }
-                });
-            });
-        });
-    });
-
-    if (vide) {
-        container.innerHTML = '<div class="text-center p-3 text-muted">Aucune compétence validée pour l\'instant.</div>';
-    }
-}
-
-window.onload = chargerDonneesAutorisations;
+<script src="js/firebase-config.js"></script>
+<script>
+    if (typeof firebaseConfig !== 'undefined') firebase.initializeApp(firebaseConfig);
+</script>
+<script src="js/admin-auth.js"></script>
+</body>
+</html>
