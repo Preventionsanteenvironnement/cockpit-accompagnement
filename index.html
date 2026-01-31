@@ -1,71 +1,96 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cockpit Accompagnement - Pilotage CPS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root { --primary-color: #2c3e50; --accent-color: #e67e22; }
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .navbar { background-color: var(--primary-color); }
-        .card-vip { border-left: 5px solid var(--accent-color); }
-    </style>
-</head>
-<body>
+// admin-auth.js - Gestion des autorisations du Cockpit (Version Corrigée)
 
-<nav class="navbar navbar-dark mb-4">
-    <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1">🚀 Cockpit Accompagnement</span>
-    </div>
-</nav>
+async function chargerDonneesAutorisations() {
+    try {
+        // --- CORRECTION ICI ---
+        // On va chercher le fichier DataLife directement sur ton site PSE existant.
+        // NOTE : J'ai supposé que le fichier s'appelle "DataLife.json" et qu'il est dans le dossier "data".
+        // Si il s'appelle "DataEleves.json", modifie juste la fin de cette ligne.
+        const urlDataLife = 'https://preventionsanteenvironnement.github.io/PSE/data/DataLife.json';
+        
+        const responseDataLife = await fetch(urlDataLife);
+        
+        if (!responseDataLife.ok) {
+            throw new Error(`Impossible de lire le fichier DataLife sur PSE (Erreur ${responseDataLife.status})`);
+        }
+        
+        const dataLife = await responseDataLife.json();
+        // ----------------------
 
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">Gestion des Autorisations (VIP)</h5>
-                    <p class="text-muted small">Sélectionnez les élèves autorisés à accéder au dispositif de Compétences Psychosociales.</p>
-                    <div id="status-message" class="alert alert-info">Chargement des données...</div>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-hover mt-3" id="table-eleves">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Code Élève</th>
-                                    <th>Statut Actuel</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="liste-eleves">
-                                </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+        // 2. Chargement du fichier d'autorisations spécifique (local au cockpit)
+        const responseAuth = await fetch('data/config/autorisations.json');
+        const dataAuth = await responseAuth.json();
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        const listeEleves = document.getElementById('liste-eleves');
+        const statusMsg = document.getElementById('status-message');
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+        listeEleves.innerHTML = ''; // On vide le tableau
+        
+        // 3. Boucle sur tous les élèves de DataLife pour vérifier leur statut
+        dataLife.forEach(eleve => {
+            // Sécurité : on s'assure qu'il y a bien un code
+            const code = eleve.code || eleve.id; 
+            if (!code) return;
 
-<script src="js/firebase-config.js"></script>
+            const estAutorise = dataAuth.ELEVES_AUTORISES && dataAuth.ELEVES_AUTORISES[code] ? dataAuth.ELEVES_AUTORISES[code].autorise : false;
 
-<script>
-    // Initialisation immédiate de Firebase avec les identifiants de votre fichier config
-    if (typeof firebaseConfig !== 'undefined') {
-        firebase.initializeApp(firebaseConfig);
-        console.log("Firebase initialisé avec succès dans le Cockpit.");
-    } else {
-        console.error("Erreur : firebaseConfig est introuvable. Vérifiez js/firebase-config.js");
+            const ligne = `
+                <tr>
+                    <td><strong>${code}</strong></td>
+                    <td>
+                        <span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">
+                            ${estAutorise ? 'Autorisé (VIP)' : 'Non autorisé'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm ${estAutorise ? 'btn-outline-danger' : 'btn-primary'}" 
+                                onclick="basculerAutorisation('${code}', ${estAutorise})">
+                            ${estAutorise ? 'Retirer accès' : 'Activer accès'}
+                        </button>
+                    </td>
+                </tr>
+            `;
+            listeEleves.innerHTML += ligne;
+        });
+
+        statusMsg.style.display = 'none';
+
+    } catch (error) {
+        console.error("Erreur de chargement :", error);
+        const msgDiv = document.getElementById('status-message');
+        msgDiv.innerHTML = `<strong>Erreur :</strong> Impossible de charger les données.<br>Vérifiez que le fichier DataLife existe bien à l'adresse :<br><small>https://preventionsanteenvironnement.github.io/PSE/data/DataLife.json</small>`;
+        msgDiv.classList.replace('alert-info', 'alert-danger');
     }
-</script>
+}
 
-<script src="js/admin-auth.js"></script>
-</body>
-</html>
+// Fonction pour activer/désactiver l'accès en temps réel dans Firebase
+async function basculerAutorisation(code, statutActuel) {
+    const nouveauStatut = !statutActuel;
+    const confirmMsg = nouveauStatut 
+        ? `Autoriser l'élève ${code} pour l'accompagnement ?` 
+        : `Révoquer l'accès pour l'élève ${code} ?`;
+
+    if (confirm(confirmMsg)) {
+        try {
+            // Chemin dans votre base Firebase
+            const dbRef = firebase.database().ref(`accompagnement/autorisations/${code}`);
+            
+            await dbRef.set({
+                autorise: nouveauStatut,
+                date_modification: new Date().toISOString(),
+                parcours: "Standard"
+            });
+
+            alert("Mise à jour réussie !");
+            // On recharge les données pour actualiser l'affichage
+            chargerDonneesAutorisations(); 
+            
+        } catch (error) {
+            console.error("Erreur Firebase :", error);
+            alert("Erreur lors de la mise à jour des droits.");
+        }
+    }
+}
+
+// Lancement au chargement de la page
+window.onload = chargerDonneesAutorisations;
