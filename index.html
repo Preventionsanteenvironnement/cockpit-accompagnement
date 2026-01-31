@@ -5,56 +5,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cockpit Accompagnement - Pilotage CPS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary-color: #2c3e50; --accent-color: #e67e22; }
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
-        .navbar { background-color: var(--primary-color); }
-        .filter-bar { background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 10px; margin-bottom: 20px; }
-        .modal-header { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); color: white; }
-        .btn-close { filter: invert(1); }
+        :root { 
+            --primary-bg: #f3f4f6; 
+            --sidebar-bg: #ffffff;
+            --accent-color: #4f46e5; /* Indigo moderne */
+            --text-dark: #1f2937;
+            --success: #10b981;
+        }
+        body { background-color: var(--primary-bg); font-family: 'Outfit', sans-serif; color: var(--text-dark); padding-bottom: 50px; }
+        
+        /* Navigation */
+        .navbar { background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1rem 2rem; }
+        .navbar-brand { font-weight: 700; color: var(--accent-color); font-size: 1.5rem; }
+
+        /* Cartes */
+        .card-modern { border: none; background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: transform 0.2s; overflow: hidden; }
+        .card-header-modern { background: transparent; border-bottom: 1px solid #f3f4f6; padding: 1.5rem; font-weight: 700; font-size: 1.1rem; }
+        
+        /* Table */
+        .table-modern th { text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; color: #6b7280; font-weight: 600; border-bottom-width: 2px; }
+        .table-modern td { vertical-align: middle; padding: 1rem 0.5rem; }
+        .btn-action { border-radius: 8px; font-weight: 500; padding: 0.4rem 1rem; transition: all 0.2s; }
+        .btn-action:hover { transform: translateY(-1px); }
+
+        /* Vue Détail (L'Univers Élève) */
+        #student-universe { display: none; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .timeline-item { padding-left: 20px; border-left: 2px solid #e5e7eb; position: relative; padding-bottom: 20px; }
+        .timeline-item::before { content: ''; position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color); }
+        .timeline-date { font-size: 0.85rem; color: #6b7280; font-weight: 500; }
+        .timeline-content { background: #f9fafb; padding: 10px; border-radius: 8px; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark mb-4 px-3 d-flex justify-content-between">
-    <span class="navbar-brand mb-0 h1">🚀 Cockpit Accompagnement</span>
-    <button class="btn btn-outline-light btn-sm" onclick="ouvrirParametres()">⚙️ Configurer Horaires</button>
+<nav class="navbar fixed-top">
+    <div class="container-fluid">
+        <span class="navbar-brand">🚀 Cockpit <span style="color:var(--text-dark)">Master</span></span>
+        <div class="d-flex gap-2">
+            <button class="btn btn-dark rounded-pill px-4" onclick="ouvrirParametres()">⚙️ Paramètres École</button>
+            <button id="btn-back-list" class="btn btn-outline-secondary rounded-pill px-4" style="display:none;" onclick="fermerUnivers()">← Retour Liste</button>
+        </div>
+    </div>
 </nav>
 
-<div class="container">
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Supervision des Élèves</h5>
-            
-            <div id="status-message" class="alert alert-info">Chargement...</div>
-            
-            <div class="row g-2 align-items-center filter-bar shadow-sm">
-                <div class="col-md-4">
-                    <input type="text" id="search-input" class="form-control" placeholder="🔍 Rechercher...">
-                </div>
-                <div class="col-md-3">
-                    <select id="filter-classe" class="form-select"><option value="ALL">Toutes les classes</option></select>
-                </div>
-                <div class="col-md-3">
-                    <select id="filter-status" class="form-select">
-                        <option value="ALL">Tous les statuts</option>
-                        <option value="AUTHORIZED">✅ Autorisés</option>
-                        <option value="UNAUTHORIZED">⛔ Bloqués</option>
-                    </select>
-                </div>
-                <div class="col-md-2 text-end">
-                    <span class="badge bg-secondary fs-6" id="counter-display">-- élèves</span>
+<div class="container-fluid px-4" style="margin-top: 100px;">
+    
+    <div id="main-list-view">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card-modern p-4">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-4">
+                            <label class="small text-muted fw-bold">RECHERCHE</label>
+                            <input type="text" id="search-input" class="form-control form-control-lg border-0 bg-light" placeholder="🔍 Nom, Classe, Code...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted fw-bold">FILTRE CLASSE</label>
+                            <select id="filter-classe" class="form-select form-select-lg border-0 bg-light"><option value="ALL">Toutes les classes</option></select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted fw-bold">STATUT</label>
+                            <select id="filter-status" class="form-select form-select-lg border-0 bg-light">
+                                <option value="ALL">Tout le monde</option>
+                                <option value="AUTHORIZED">✅ Actifs</option>
+                                <option value="UNAUTHORIZED">⛔ En attente</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <h2 class="mb-0 fw-bold text-primary" id="counter-display">0</h2>
+                            <small class="text-muted">Élèves</small>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
 
+        <div class="card-modern">
             <div class="table-responsive">
-                <table class="table table-hover align-middle" id="table-eleves">
-                    <thead class="table-light">
+                <table class="table table-modern table-hover mb-0">
+                    <thead class="bg-light">
                         <tr>
-                            <th>Élève</th>
-                            <th>État</th>
-                            <th class="text-end">Actions</th>
+                            <th class="ps-4">Identité</th>
+                            <th>Classe</th>
+                            <th>Statut</th>
+                            <th class="text-end pe-4">Accès Univers</th>
                         </tr>
                     </thead>
                     <tbody id="liste-eleves"></tbody>
@@ -62,69 +101,98 @@
             </div>
         </div>
     </div>
-</div>
 
-<div class="modal fade" id="modalEleve" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Détail Élève : <span id="modal-eleve-titre">--</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div id="student-universe">
+        <div class="row mb-4 align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-5 fw-bold mb-0"><span id="univ-nom" class="text-primary">--</span></h1>
+                <p class="lead text-muted mb-0">Classe : <span id="univ-classe">--</span> • Code : <span id="univ-code">--</span></p>
             </div>
-            <div class="modal-body bg-light">
-                <div class="row">
-                    <div class="col-md-6 text-center">
-                        <div style="max-height: 300px; position: relative;"><canvas id="adminRadarChart"></canvas></div>
+            <div class="col-md-4 text-end">
+                <button id="univ-btn-action" class="btn btn-lg btn-danger rounded-pill px-5">Bloquer l'accès</button>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card-modern mb-4 h-100">
+                    <div class="card-header-modern d-flex justify-content-between">
+                        <span>🎯 Profil de Compétences</span>
+                        <span class="badge bg-light text-dark border">Vue Globale</span>
                     </div>
-                    <div class="col-md-6">
-                        <div id="modal-liste-competences" class="list-group list-group-flush small" style="max-height: 300px; overflow-y: auto;"></div>
+                    <div class="card-body">
+                        <div style="height: 350px;"><canvas id="univRadarChart"></canvas></div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button></div>
+
+            <div class="col-lg-7">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card-modern h-100">
+                            <div class="card-header-modern">📊 Contextes Validés</div>
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <div style="height: 200px; width: 100%;"><canvas id="univContextChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card-modern h-100 bg-primary text-white">
+                            <div class="card-body d-flex flex-column justify-content-center text-center">
+                                <h1 class="display-1 fw-bold mb-0" id="univ-total-valid">0</h1>
+                                <p class="fs-5 opacity-75">Réussites Validées</p>
+                                <hr class="opacity-25">
+                                <div class="small opacity-75">Dernière activité : <span id="univ-last-date">--</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card-modern">
+                            <div class="card-header-modern">📅 Chronologie des Réussites</div>
+                            <div class="card-body bg-light" style="max-height: 400px; overflow-y: auto;">
+                                <div id="univ-timeline" class="ps-2 pt-2">
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
 </div>
 
 <div class="modal fade" id="modalParams" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-dark">
-                <h5 class="modal-title">⚙️ Configuration Scolaire</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">⚙️ Configuration École</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">Ces réglages s'appliquent immédiatement à tous les élèves.</p>
-                
                 <div class="row mb-3">
-                    <div class="col-6">
-                        <label class="form-label">Heure Ouverture</label>
-                        <input type="number" id="cfg-ouverture" class="form-control" min="0" max="23" value="8">
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">Heure Fermeture</label>
-                        <input type="number" id="cfg-fermeture" class="form-control" min="0" max="23" value="18">
-                    </div>
+                    <div class="col-6"><label class="form-label fw-bold">Ouverture (h)</label><input type="number" id="cfg-ouverture" class="form-control" value="8"></div>
+                    <div class="col-6"><label class="form-label fw-bold">Fermeture (h)</label><input type="number" id="cfg-fermeture" class="form-control" value="18"></div>
                 </div>
-
-                <label class="form-label">Jours Ouverts</label>
-                <div class="d-flex justify-content-between mb-3 border p-2 rounded">
-                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="1" id="d1" checked><label class="form-check-label" for="d1">Lun</label></div>
-                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="2" id="d2" checked><label class="form-check-label" for="d2">Mar</label></div>
-                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="3" id="d3" checked><label class="form-check-label" for="d3">Mer</label></div>
-                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="4" id="d4" checked><label class="form-check-label" for="d4">Jeu</label></div>
-                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="5" id="d5" checked><label class="form-check-label" for="d5">Ven</label></div>
-                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="6" id="d6"><label class="form-check-label" for="d6">Sam</label></div>
-                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="0" id="d0"><label class="form-check-label" for="d0">Dim</label></div>
+                <label class="form-label fw-bold">Jours d'accès</label>
+                <div class="d-flex justify-content-between mb-4 border p-2 rounded bg-light">
+                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="1" id="d1"><label class="form-check-label" for="d1">L</label></div>
+                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="2" id="d2"><label class="form-check-label" for="d2">M</label></div>
+                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="3" id="d3"><label class="form-check-label" for="d3">M</label></div>
+                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="4" id="d4"><label class="form-check-label" for="d4">J</label></div>
+                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="5" id="d5"><label class="form-check-label" for="d5">V</label></div>
+                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="6" id="d6"><label class="form-check-label" for="d6">S</label></div>
+                    <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="0" id="d0"><label class="form-check-label" for="d0">D</label></div>
                 </div>
-
-                <div class="form-check form-switch">
+                <div class="form-check form-switch p-3 bg-danger-subtle rounded">
                     <input class="form-check-input" type="checkbox" id="cfg-maintenance">
-                    <label class="form-check-label text-danger fw-bold" for="cfg-maintenance">⛔ Forcer la fermeture (Vacances)</label>
+                    <label class="form-check-label text-danger fw-bold" for="cfg-maintenance">⛔ Mode Vacances (Tout fermer)</label>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary w-100" onclick="sauvegarderParams()">💾 Appliquer aux élèves</button>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-primary w-100 rounded-pill" onclick="sauvegarderParams()">💾 Appliquer à tous</button>
             </div>
         </div>
     </div>
