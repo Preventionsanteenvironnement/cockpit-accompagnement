@@ -1,0 +1,17 @@
+{
+  "VERSION_FORMAT": "1.0",
+  "DERNIERE_MAJ": "2026-01-31",
+  "ELEVES_AUTORISES": {
+    "EXEMPLE_CODE_1": {
+      "autorise": true,
+      "date_entree": "2026-02-01",
+      "parcours": "Valorisation",
+      "referent": "M. NOM_ENSEIGNANT"
+    },
+    "EXEMPLE_CODE_2": {
+      "autorise": false,
+      "date_entree": "2026-02-05",
+      "parcours": "Soutien CPS"
+    }
+  }
+}
