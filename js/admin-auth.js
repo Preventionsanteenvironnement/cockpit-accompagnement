@@ -1,46 +1,41 @@
-// admin-auth.js - Gestion des autorisations du Cockpit (Version Compatible BDD_ELEVES)
+// admin-auth.js - Version corrigée pour data_eleves.js
 
 async function chargerDonneesAutorisations() {
     try {
         const listeEleves = document.getElementById('liste-eleves');
         const statusMsg = document.getElementById('status-message');
         
-        // 1. Chargement dynamique du script BDD Élèves depuis le site PSE
+        // 1. On charge le fichier JS des élèves (data_eleves.js)
         if (typeof window.BDD_ELEVES === 'undefined') {
             await new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                // URL exacte vue sur votre capture
+                // ICI : C'est le lien corrigé qui pointe vers votre fichier réel
                 script.src = 'https://preventionsanteenvironnement.github.io/PSE/data_eleves.js';
                 script.onload = resolve;
-                script.onerror = () => reject(new Error("Impossible de charger data_eleves.js depuis le site PSE"));
+                script.onerror = () => reject(new Error("Impossible de trouver le fichier data_eleves.js sur le site PSE."));
                 document.head.appendChild(script);
             });
         }
 
-        const dataLife = window.BDD_ELEVES; // On récupère la variable globale du fichier chargé
-        console.log("Élèves chargés :", dataLife.length);
+        const dataLife = window.BDD_ELEVES; // On récupère vos 150 élèves ici
 
-        // 2. Chargement du fichier d'autorisations spécifique (local au cockpit)
+        // 2. On charge les autorisations
         const responseAuth = await fetch('data/config/autorisations.json');
         const dataAuth = await responseAuth.json();
 
-        listeEleves.innerHTML = ''; // On vide le tableau
+        listeEleves.innerHTML = '';
         
-        // 3. Boucle sur tous les élèves
+        // 3. On affiche la liste
         dataLife.forEach(eleve => {
-            const code = eleve.userCode; // Votre fichier utilise 'userCode' et non 'code'
+            const code = eleve.userCode; 
             if (!code) return;
 
             const estAutorise = dataAuth.ELEVES_AUTORISES && dataAuth.ELEVES_AUTORISES[code] ? dataAuth.ELEVES_AUTORISES[code].autorise : false;
 
             const ligne = `
                 <tr>
-                    <td><strong>${code}</strong> <small class="text-muted">(${eleve.classe})</small></td>
-                    <td>
-                        <span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">
-                            ${estAutorise ? 'Autorisé (VIP)' : 'Non autorisé'}
-                        </span>
-                    </td>
+                    <td><strong>${code}</strong> <small>(${eleve.classe})</small></td>
+                    <td><span class="badge ${estAutorise ? 'bg-success' : 'bg-secondary'}">${estAutorise ? 'Autorisé' : 'Non autorisé'}</span></td>
                     <td>
                         <button class="btn btn-sm ${estAutorise ? 'btn-outline-danger' : 'btn-primary'}" 
                                 onclick="basculerAutorisation('${code}', ${estAutorise})">
@@ -55,36 +50,23 @@ async function chargerDonneesAutorisations() {
         statusMsg.style.display = 'none';
 
     } catch (error) {
-        console.error("Erreur de chargement :", error);
-        const msgDiv = document.getElementById('status-message');
-        msgDiv.innerHTML = `<strong>Erreur :</strong> ${error.message}<br>Vérifiez l'URL de data_eleves.js`;
-        msgDiv.classList.replace('alert-info', 'alert-danger');
+        console.error(error);
+        document.getElementById('status-message').innerHTML = `<strong>Erreur :</strong> ${error.message}`;
     }
 }
 
-// Fonction pour activer/désactiver l'accès en temps réel dans Firebase
 async function basculerAutorisation(code, statutActuel) {
     const nouveauStatut = !statutActuel;
-    const confirmMsg = nouveauStatut 
-        ? `Autoriser l'élève ${code} pour l'accompagnement ?` 
-        : `Révoquer l'accès pour l'élève ${code} ?`;
-
-    if (confirm(confirmMsg)) {
+    if (confirm(nouveauStatut ? `Autoriser ${code} ?` : `Retirer ${code} ?`)) {
         try {
-            const dbRef = firebase.database().ref(`accompagnement/autorisations/${code}`);
-            
-            await dbRef.set({
+            await firebase.database().ref(`accompagnement/autorisations/${code}`).set({
                 autorise: nouveauStatut,
-                date_modification: new Date().toISOString(),
-                parcours: "Standard"
+                date_modification: new Date().toISOString()
             });
-
             alert("Mise à jour réussie !");
             chargerDonneesAutorisations(); 
-            
         } catch (error) {
-            console.error("Erreur Firebase :", error);
-            alert("Erreur lors de la mise à jour des droits.");
+            alert("Erreur Firebase : " + error);
         }
     }
 }
