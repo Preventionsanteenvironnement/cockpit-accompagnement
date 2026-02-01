@@ -1,315 +1,224 @@
-// cockpit-accompagnement-main/js/admin-auth.js
+// Cockpit accompagnement
+// - Liste eleves (auto depuis RTDB)
+// - Autorisation eleve (accompagnement/autorisations/<code>)
+// - Validations depuis scan QR (accompagnement/validations)
 
-const DB_ROOT = "accompagnement";
-const PATH_ELEVES = `${DB_ROOT}/eleves`;
-const PATH_VALIDATIONS = `${DB_ROOT}/validations`;
+(function () {
+  const DB_ROOT = 'accompagnement';
+  const REF_ELEVES = `${DB_ROOT}/eleves`;
+  const REF_AUTORISATIONS = `${DB_ROOT}/autorisations`;
+  const REF_VALIDATIONS = `${DB_ROOT}/validations`;
 
-// Codes simples côté client (à garder léger, ce n’est pas une vraie sécurité)
-const ADMIN_CODES = ["MAPSE", "PSE", "PSE2026"];
+  const elListe = document.getElementById('liste-eleves');
+  const elSecEleve = document.getElementById('sec-eleve');
+  const elNomEleve = document.getElementById('nom-eleve');
+  const elDetailEleve = document.getElementById('detail-eleve');
+  const elListeValidations = document.getElementById('liste-validations');
 
-let adminCode = sessionStorage.getItem("adminCode") || null;
-let scanner = null;
-let scannerRunning = false;
-
-function requireAdmin() {
-  if (adminCode) return true;
-
-  const input = prompt("Code enseignant");
-  if (!input) return false;
-
-  const code = input.trim().toUpperCase();
-  if (!ADMIN_CODES.includes(code)) {
-    alert("Code invalide");
-    return false;
+  if (typeof firebase === 'undefined' || !firebase.apps?.length) {
+    console.error('Firebase non initialise');
+    return;
   }
-  adminCode = code;
-  sessionStorage.setItem("adminCode", adminCode);
-  return true;
-}
 
-function showSection(section, evt) {
-  const e = evt || window.event;
+  // --- Etat ---
+  let autorisationsCache = {}; // { CODE: {autorise:true,...} }
+  let elevesCache = {};        // { CODE: {...data} }
+  let selectedEleve = null;
 
-  if (!requireAdmin()) return;
+  // --- Utils ---
+  function safeUpper(v) {
+    return String(v || '').trim().toUpperCase();
+  }
 
-  document.getElementById("sec-liste").style.display = section === "liste" ? "block" : "none";
-  document.getElementById("sec-scan").style.display = section === "scan" ? "block" : "none";
-  document.getElementById("sec-validations").style.display = section === "validations" ? "block" : "none";
-  document.getElementById("sec-ref").style.display = section === "ref" ? "block" : "none";
+  function fmtDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString();
+  }
 
-  document.querySelectorAll(".sidebar .nav-link").forEach(a => a.classList.remove("active"));
-  if (e && e.target) e.target.classList.add("active");
+  function getAuthState(code) {
+    const c = safeUpper(code);
+    const a = autorisationsCache[c];
+    return !!(a && a.autorise === true);
+  }
 
-  if (section === "liste") loadEleves();
-  if (section === "validations") loadValidations();
-  if (section === "scan") startScanner();
-  else stopScanner();
-}
+  function setAuthState(code, autorise) {
+    const c = safeUpper(code);
+    return firebase
+      .database()
+      .ref(`${REF_AUTORISATIONS}/${c}`)
+      .update({
+        autorise: !!autorise,
+        updated_at: Date.now(),
+      });
+  }
 
-window.showSection = showSection;
+  // --- Rendering ---
+  function renderListeEleves(codes) {
+    if (!elListe) return;
+    elListe.innerHTML = '';
 
-// ---------- LISTE ELEVES ----------
-
-function countGoals(obj = {}) {
-  const goals = obj.objectifs || {};
-  let enCours = 0;
-  let atteints = 0;
-  Object.values(goals).forEach(g => {
-    if (g && g.done) atteints++;
-    else enCours++;
-  });
-  return { enCours, atteints, total: enCours + atteints };
-}
-
-function loadEleves() {
-  const container = document.getElementById("liste-eleves");
-  container.innerHTML = "";
-
-  firebase.database().ref(PATH_ELEVES).once("value").then(snap => {
-    const data = snap.val() || {};
-    const codes = Object.keys(data).sort();
-
-    if (codes.length === 0) {
-      container.innerHTML = `<div class="text-muted">Aucun élève trouvé dans ${PATH_ELEVES}</div>`;
+    if (!codes.length) {
+      elListe.innerHTML = `<div class="text-muted">Aucun eleve detecte dans la base.</div>`;
       return;
     }
 
-    codes.forEach(code => {
-      const eleve = data[code] || {};
-      const { enCours, atteints, total } = countGoals(eleve);
-      const moodToday = getTodayMoodLabel(eleve);
+    codes.forEach((code) => {
+      const c = safeUpper(code);
+      const allowed = getAuthState(c);
 
-      container.innerHTML += `
-        <div class="col-12 col-md-6 col-lg-4">
-          <div class="card p-3 h-100">
-            <div class="d-flex justify-content-between align-items-start">
-              <div>
-                <div class="fw-bold">${code}</div>
-                <div class="text-muted small">${moodToday}</div>
-              </div>
-              <button class="btn btn-sm btn-outline-primary" onclick="openEleveValidations('${code}')">Voir</button>
+      const card = document.createElement('div');
+      card.className = 'card mb-2';
+      card.style.cursor = 'pointer';
+
+      card.innerHTML = `
+        <div class="card-body d-flex align-items-center justify-content-between" style="gap:12px;">
+          <div>
+            <div style="font-weight:700;">${c}</div>
+            <div class="small ${allowed ? 'text-success' : 'text-danger'}">
+              ${allowed ? 'Autorise' : 'Non autorise'}
             </div>
-
-            <hr class="my-3">
-
-            <div class="d-flex gap-2">
-              <div class="badge text-bg-primary">En cours ${enCours}</div>
-              <div class="badge text-bg-success">Atteints ${atteints}</div>
-              <div class="badge text-bg-secondary">Total ${total}</div>
-            </div>
+          </div>
+          <div class="d-flex" style="gap:8px;">
+            <button class="btn btn-sm ${allowed ? 'btn-outline-danger' : 'btn-outline-success'}" data-action="toggle">
+              ${allowed ? 'Interdire' : 'Autoriser'}
+            </button>
+            <button class="btn btn-sm btn-outline-primary" data-action="open">Ouvrir</button>
           </div>
         </div>
       `;
+
+      // Click boutons
+      card.querySelector('[data-action="toggle"]').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const next = !getAuthState(c);
+        await setAuthState(c, next);
+      });
+
+      card.querySelector('[data-action="open"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEleve(c);
+      });
+
+      // Click carte
+      card.addEventListener('click', () => openEleve(c));
+
+      elListe.appendChild(card);
     });
-  });
-}
+  }
 
-function getTodayMoodLabel(eleve) {
-  const meteo = eleve.meteo || {};
-  const today = new Date().toISOString().split("T")[0];
-  const m = meteo[today];
-  if (!m) return "Météo non saisie";
-  const p = m.primary || "";
-  const s = m.secondary || "";
-  return s ? `Météo ${p} - ${s}` : `Météo ${p}`;
-}
+  function openEleve(code) {
+    const c = safeUpper(code);
+    selectedEleve = c;
+    if (elSecEleve) elSecEleve.style.display = 'block';
+    if (elNomEleve) elNomEleve.textContent = c;
 
-// ---------- VALIDATIONS ----------
+    const data = elevesCache[c] || {};
+    const objectifs = data.objectifs ? Object.keys(data.objectifs).length : 0;
+    const meteo = data.meteo ? Object.keys(data.meteo).length : 0;
+    const autorise = getAuthState(c);
 
-function loadValidations() {
-  const tbody = document.getElementById("table-validations");
-  tbody.innerHTML = "";
+    if (elDetailEleve) {
+      elDetailEleve.innerHTML = `
+        <div><strong>Autorisation :</strong> ${autorise ? 'Autorise' : 'Non autorise'}</div>
+        <div><strong>Objectifs :</strong> ${objectifs}</div>
+        <div><strong>Meteo :</strong> ${meteo}</div>
+      `;
+    }
+  }
 
-  firebase.database().ref(PATH_VALIDATIONS).orderByChild("timestamp").limitToLast(200).once("value").then(snap => {
-    const vals = snap.val() || {};
-    const rows = Object.entries(vals)
-      .map(([id, v]) => ({ id, ...v }))
-      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  function renderValidations(items) {
+    if (!elListeValidations) return;
+    elListeValidations.innerHTML = '';
 
-    if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-muted">Aucune validation</td></tr>`;
+    if (!items.length) {
+      elListeValidations.innerHTML = `<tr><td colspan="4" class="text-muted">Aucune validation</td></tr>`;
       return;
     }
 
-    rows.forEach(v => {
-      const d = v.timestamp ? new Date(v.timestamp).toLocaleString() : "";
-      const eleve = v.eleve || "";
-      const flux = v.flux === 1 ? "Objectif" : (v.flux === 2 ? "Reconnaissance" : "Inconnu");
-      const comp = v.competence || v.type_reconnaissance || "";
-      const detail = v.objectif ? `objectif ${v.objectif}` : (v.cadre ? `cadre ${v.cadre}` : "");
-
-      tbody.innerHTML += `
-        <tr>
-          <td>${d}</td>
-          <td>${eleve}</td>
-          <td>${flux}</td>
-          <td>${comp}</td>
-          <td>${detail}</td>
-        </tr>
+    items.forEach((v) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${safeUpper(v.eleve)}</td>
+        <td>${v.flux || ''}</td>
+        <td>${safeUpper(v.competence || v.type_reconnaissance || '')}</td>
+        <td>${fmtDate(v.timestamp || v.created_at)}</td>
       `;
+      elListeValidations.appendChild(tr);
     });
-  });
-}
+  }
 
-window.openEleveValidations = function(code) {
-  if (!requireAdmin()) return;
+  // --- Data subscriptions ---
+  function subscribeAutorisations() {
+    firebase.database().ref(REF_AUTORISATIONS).on('value', (snap) => {
+      autorisationsCache = snap.val() || {};
+      // re-render list if already loaded
+      const codes = Object.keys(elevesCache).sort();
+      if (codes.length) renderListeEleves(codes);
+      if (selectedEleve) openEleve(selectedEleve);
+    });
+  }
 
-  const tbody = document.getElementById("table-validations");
-  tbody.innerHTML = "";
-  showSection("validations");
+  function subscribeEleves() {
+    firebase.database().ref(REF_ELEVES).on('value', (snap) => {
+      elevesCache = snap.val() || {};
+      const codes = Object.keys(elevesCache).sort();
+      renderListeEleves(codes);
+      if (selectedEleve && elevesCache[selectedEleve]) openEleve(selectedEleve);
+    });
+  }
 
-  firebase.database().ref(`${PATH_ELEVES}/${code}/validations`).orderByChild("timestamp").limitToLast(200).once("value").then(snap => {
-    const vals = snap.val() || {};
-    const rows = Object.entries(vals)
-      .map(([id, v]) => ({ id, ...v }))
-      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  function subscribeValidations() {
+    firebase.database().ref(REF_VALIDATIONS).limitToLast(50).on('value', (snap) => {
+      const obj = snap.val() || {};
+      const items = Object.keys(obj)
+        .map((k) => ({ id: k, ...obj[k] }))
+        .sort((a, b) => (b.timestamp || b.created_at || 0) - (a.timestamp || a.created_at || 0));
+      renderValidations(items);
+    });
+  }
 
-    if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-muted">Aucune validation pour ${code}</td></tr>`;
+  // --- QR Scan ---
+  function initQrScanner() {
+    const containerId = 'qr-reader';
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    if (typeof Html5QrcodeScanner === 'undefined') {
+      console.warn('Html5QrcodeScanner indisponible');
       return;
     }
 
-    rows.forEach(v => {
-      const d = v.timestamp ? new Date(v.timestamp).toLocaleString() : "";
-      const flux = v.flux === 1 ? "Objectif" : (v.flux === 2 ? "Reconnaissance" : "Inconnu");
-      const comp = v.competence || v.type_reconnaissance || "";
-      const detail = v.objectif ? `objectif ${v.objectif}` : (v.cadre ? `cadre ${v.cadre}` : "");
-
-      tbody.innerHTML += `
-        <tr>
-          <td>${d}</td>
-          <td>${code}</td>
-          <td>${flux}</td>
-          <td>${comp}</td>
-          <td>${detail}</td>
-        </tr>
-      `;
+    const scanner = new Html5QrcodeScanner(containerId, {
+      fps: 10,
+      qrbox: 250,
     });
-  });
-};
 
-// ---------- SCAN QR ----------
-
-function startScanner() {
-  if (!requireAdmin()) return;
-
-  if (!scanner) {
-    scanner = new Html5Qrcode("reader");
-  }
-  if (scannerRunning) return;
-
-  const onSuccess = (decodedText) => onScanSuccess(decodedText);
-  const onError = () => {};
-
-  scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    onSuccess,
-    onError
-  ).then(() => {
-    scannerRunning = true;
-  }).catch(() => {
-    scannerRunning = false;
-  });
-}
-
-function stopScanner() {
-  if (!scanner || !scannerRunning) return;
-  scanner.stop().then(() => {
-    scannerRunning = false;
-  }).catch(() => {
-    scannerRunning = false;
-  });
-}
-
-function safeParseJSON(txt) {
-  try { return JSON.parse(txt); } catch { return null; }
-}
-
-function writeValidationBoth(p) {
-  const payload = {
-    ...p,
-    validator: adminCode || "",
-    validated_at: Date.now()
-  };
-
-  const updates = {};
-  const globalKey = firebase.database().ref(PATH_VALIDATIONS).push().key;
-  updates[`${PATH_VALIDATIONS}/${globalKey}`] = payload;
-
-  if (payload.eleve) {
-    const eleveKey = firebase.database().ref(`${PATH_ELEVES}/${payload.eleve}/validations`).push().key;
-    updates[`${PATH_ELEVES}/${payload.eleve}/validations/${eleveKey}`] = payload;
+    scanner.render(
+      async (decodedText) => {
+        try {
+          const p = JSON.parse(decodedText);
+          // Normalisation minimale
+          const rec = {
+            ...p,
+            eleve: safeUpper(p.eleve),
+            created_at: Date.now(),
+          };
+          await firebase.database().ref(REF_VALIDATIONS).push(rec);
+        } catch (e) {
+          console.error('QR invalide', e);
+        }
+      },
+      (err) => {
+        // erreurs scan ignorees
+      }
+    );
   }
 
-  return firebase.database().ref().update(updates);
-}
-
-function validateGoalDone(eleve, objectifId) {
-  const path = `${PATH_ELEVES}/${eleve}/objectifs/${objectifId}`;
-  return firebase.database().ref(path).update({
-    done: true,
-    date_done: new Date().toISOString()
-  });
-}
-
-function onScanSuccess(decodedText) {
-  const box = document.getElementById("scan-result");
-  const data = safeParseJSON(decodedText);
-
-  if (!data || !data.eleve || !data.timestamp) {
-    box.style.display = "block";
-    box.className = "mt-3 alert alert-danger";
-    box.innerText = "QR illisible ou incomplet";
-    return;
-  }
-
-  const flux = Number(data.flux || 0);
-
-  // Flux 1 objectif
-  if (flux === 1 && data.objectif) {
-    validateGoalDone(data.eleve, data.objectif)
-      .then(() => writeValidationBoth(data))
-      .then(() => {
-        box.style.display = "block";
-        box.className = "mt-3 alert alert-success";
-        box.innerText = `Validé objectif pour ${data.eleve}`;
-        loadValidations();
-      })
-      .catch(() => {
-        box.style.display = "block";
-        box.className = "mt-3 alert alert-danger";
-        box.innerText = "Erreur validation objectif";
-      });
-    return;
-  }
-
-  // Flux 2 reconnaissance
-  if (flux === 2) {
-    writeValidationBoth(data)
-      .then(() => {
-        box.style.display = "block";
-        box.className = "mt-3 alert alert-success";
-        box.innerText = `Validé reconnaissance pour ${data.eleve}`;
-        loadValidations();
-      })
-      .catch(() => {
-        box.style.display = "block";
-        box.className = "mt-3 alert alert-danger";
-        box.innerText = "Erreur validation reconnaissance";
-      });
-    return;
-  }
-
-  box.style.display = "block";
-  box.className = "mt-3 alert alert-warning";
-  box.innerText = "Flux non reconnu";
-}
-
-window.addEventListener("load", () => {
-  // Démarrage sur liste si admin ok
-  if (requireAdmin()) {
-    loadEleves();
-    loadValidations();
-  }
-});
+  // --- Boot ---
+  subscribeAutorisations();
+  subscribeEleves();
+  subscribeValidations();
+  initQrScanner();
+})();
