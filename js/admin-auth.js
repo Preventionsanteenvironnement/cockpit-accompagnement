@@ -1,83 +1,315 @@
-// admin-auth.js - Version V20 (Finale)
+// cockpit-accompagnement-main/js/admin-auth.js
 
-let allEleves = [ { userCode: "KA47", classe: "B1AGO1" } ]; // + autres élèves
-let html5QrcodeScanner = null;
+const DB_ROOT = "accompagnement";
+const PATH_ELEVES = `${DB_ROOT}/eleves`;
+const PATH_VALIDATIONS = `${DB_ROOT}/validations`;
 
-// INIT
-window.onload = function() {
-    chargerDonnees();
-    initScanner();
+// Codes simples côté client (à garder léger, ce n’est pas une vraie sécurité)
+const ADMIN_CODES = ["MAPSE", "PSE", "PSE2026"];
+
+let adminCode = sessionStorage.getItem("adminCode") || null;
+let scanner = null;
+let scannerRunning = false;
+
+function requireAdmin() {
+  if (adminCode) return true;
+
+  const input = prompt("Code enseignant");
+  if (!input) return false;
+
+  const code = input.trim().toUpperCase();
+  if (!ADMIN_CODES.includes(code)) {
+    alert("Code invalide");
+    return false;
+  }
+  adminCode = code;
+  sessionStorage.setItem("adminCode", adminCode);
+  return true;
 }
 
-function showSection(id) {
-    ['liste','scan','validations','ref'].forEach(s => document.getElementById('sec-'+s).style.display='none');
-    document.getElementById('sec-'+id).style.display='block';
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    event.target.classList.add('active');
+function showSection(section, evt) {
+  const e = evt || window.event;
+
+  if (!requireAdmin()) return;
+
+  document.getElementById("sec-liste").style.display = section === "liste" ? "block" : "none";
+  document.getElementById("sec-scan").style.display = section === "scan" ? "block" : "none";
+  document.getElementById("sec-validations").style.display = section === "validations" ? "block" : "none";
+  document.getElementById("sec-ref").style.display = section === "ref" ? "block" : "none";
+
+  document.querySelectorAll(".sidebar .nav-link").forEach(a => a.classList.remove("active"));
+  if (e && e.target) e.target.classList.add("active");
+
+  if (section === "liste") loadEleves();
+  if (section === "validations") loadValidations();
+  if (section === "scan") startScanner();
+  else stopScanner();
 }
 
-// --- SCANNER QR ---
-function initScanner() {
-    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-    html5QrcodeScanner.render(onScanSuccess);
+window.showSection = showSection;
+
+// ---------- LISTE ELEVES ----------
+
+function countGoals(obj = {}) {
+  const goals = obj.objectifs || {};
+  let enCours = 0;
+  let atteints = 0;
+  Object.values(goals).forEach(g => {
+    if (g && g.done) atteints++;
+    else enCours++;
+  });
+  return { enCours, atteints, total: enCours + atteints };
+}
+
+function loadEleves() {
+  const container = document.getElementById("liste-eleves");
+  container.innerHTML = "";
+
+  firebase.database().ref(PATH_ELEVES).once("value").then(snap => {
+    const data = snap.val() || {};
+    const codes = Object.keys(data).sort();
+
+    if (codes.length === 0) {
+      container.innerHTML = `<div class="text-muted">Aucun élève trouvé dans ${PATH_ELEVES}</div>`;
+      return;
+    }
+
+    codes.forEach(code => {
+      const eleve = data[code] || {};
+      const { enCours, atteints, total } = countGoals(eleve);
+      const moodToday = getTodayMoodLabel(eleve);
+
+      container.innerHTML += `
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="card p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">${code}</div>
+                <div class="text-muted small">${moodToday}</div>
+              </div>
+              <button class="btn btn-sm btn-outline-primary" onclick="openEleveValidations('${code}')">Voir</button>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="d-flex gap-2">
+              <div class="badge text-bg-primary">En cours ${enCours}</div>
+              <div class="badge text-bg-success">Atteints ${atteints}</div>
+              <div class="badge text-bg-secondary">Total ${total}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  });
+}
+
+function getTodayMoodLabel(eleve) {
+  const meteo = eleve.meteo || {};
+  const today = new Date().toISOString().split("T")[0];
+  const m = meteo[today];
+  if (!m) return "Météo non saisie";
+  const p = m.primary || "";
+  const s = m.secondary || "";
+  return s ? `Météo ${p} - ${s}` : `Météo ${p}`;
+}
+
+// ---------- VALIDATIONS ----------
+
+function loadValidations() {
+  const tbody = document.getElementById("table-validations");
+  tbody.innerHTML = "";
+
+  firebase.database().ref(PATH_VALIDATIONS).orderByChild("timestamp").limitToLast(200).once("value").then(snap => {
+    const vals = snap.val() || {};
+    const rows = Object.entries(vals)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-muted">Aucune validation</td></tr>`;
+      return;
+    }
+
+    rows.forEach(v => {
+      const d = v.timestamp ? new Date(v.timestamp).toLocaleString() : "";
+      const eleve = v.eleve || "";
+      const flux = v.flux === 1 ? "Objectif" : (v.flux === 2 ? "Reconnaissance" : "Inconnu");
+      const comp = v.competence || v.type_reconnaissance || "";
+      const detail = v.objectif ? `objectif ${v.objectif}` : (v.cadre ? `cadre ${v.cadre}` : "");
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${d}</td>
+          <td>${eleve}</td>
+          <td>${flux}</td>
+          <td>${comp}</td>
+          <td>${detail}</td>
+        </tr>
+      `;
+    });
+  });
+}
+
+window.openEleveValidations = function(code) {
+  if (!requireAdmin()) return;
+
+  const tbody = document.getElementById("table-validations");
+  tbody.innerHTML = "";
+  showSection("validations");
+
+  firebase.database().ref(`${PATH_ELEVES}/${code}/validations`).orderByChild("timestamp").limitToLast(200).once("value").then(snap => {
+    const vals = snap.val() || {};
+    const rows = Object.entries(vals)
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-muted">Aucune validation pour ${code}</td></tr>`;
+      return;
+    }
+
+    rows.forEach(v => {
+      const d = v.timestamp ? new Date(v.timestamp).toLocaleString() : "";
+      const flux = v.flux === 1 ? "Objectif" : (v.flux === 2 ? "Reconnaissance" : "Inconnu");
+      const comp = v.competence || v.type_reconnaissance || "";
+      const detail = v.objectif ? `objectif ${v.objectif}` : (v.cadre ? `cadre ${v.cadre}` : "");
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${d}</td>
+          <td>${code}</td>
+          <td>${flux}</td>
+          <td>${comp}</td>
+          <td>${detail}</td>
+        </tr>
+      `;
+    });
+  });
+};
+
+// ---------- SCAN QR ----------
+
+function startScanner() {
+  if (!requireAdmin()) return;
+
+  if (!scanner) {
+    scanner = new Html5Qrcode("reader");
+  }
+  if (scannerRunning) return;
+
+  const onSuccess = (decodedText) => onScanSuccess(decodedText);
+  const onError = () => {};
+
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    onSuccess,
+    onError
+  ).then(() => {
+    scannerRunning = true;
+  }).catch(() => {
+    scannerRunning = false;
+  });
+}
+
+function stopScanner() {
+  if (!scanner || !scannerRunning) return;
+  scanner.stop().then(() => {
+    scannerRunning = false;
+  }).catch(() => {
+    scannerRunning = false;
+  });
+}
+
+function safeParseJSON(txt) {
+  try { return JSON.parse(txt); } catch { return null; }
+}
+
+function writeValidationBoth(p) {
+  const payload = {
+    ...p,
+    validator: adminCode || "",
+    validated_at: Date.now()
+  };
+
+  const updates = {};
+  const globalKey = firebase.database().ref(PATH_VALIDATIONS).push().key;
+  updates[`${PATH_VALIDATIONS}/${globalKey}`] = payload;
+
+  if (payload.eleve) {
+    const eleveKey = firebase.database().ref(`${PATH_ELEVES}/${payload.eleve}/validations`).push().key;
+    updates[`${PATH_ELEVES}/${payload.eleve}/validations/${eleveKey}`] = payload;
+  }
+
+  return firebase.database().ref().update(updates);
+}
+
+function validateGoalDone(eleve, objectifId) {
+  const path = `${PATH_ELEVES}/${eleve}/objectifs/${objectifId}`;
+  return firebase.database().ref(path).update({
+    done: true,
+    date_done: new Date().toISOString()
+  });
 }
 
 function onScanSuccess(decodedText) {
-    try {
-        const data = JSON.parse(decodedText);
-        handleValidation(data);
-        document.getElementById('scan-result').style.display='block';
-        document.getElementById('scan-result').innerText = "✅ Validé pour " + data.eleve;
-        setTimeout(() => document.getElementById('scan-result').style.display='none', 3000);
-    } catch(e) { console.error("QR Invalide"); }
+  const box = document.getElementById("scan-result");
+  const data = safeParseJSON(decodedText);
+
+  if (!data || !data.eleve || !data.timestamp) {
+    box.style.display = "block";
+    box.className = "mt-3 alert alert-danger";
+    box.innerText = "QR illisible ou incomplet";
+    return;
+  }
+
+  const flux = Number(data.flux || 0);
+
+  // Flux 1 objectif
+  if (flux === 1 && data.objectif) {
+    validateGoalDone(data.eleve, data.objectif)
+      .then(() => writeValidationBoth(data))
+      .then(() => {
+        box.style.display = "block";
+        box.className = "mt-3 alert alert-success";
+        box.innerText = `Validé objectif pour ${data.eleve}`;
+        loadValidations();
+      })
+      .catch(() => {
+        box.style.display = "block";
+        box.className = "mt-3 alert alert-danger";
+        box.innerText = "Erreur validation objectif";
+      });
+    return;
+  }
+
+  // Flux 2 reconnaissance
+  if (flux === 2) {
+    writeValidationBoth(data)
+      .then(() => {
+        box.style.display = "block";
+        box.className = "mt-3 alert alert-success";
+        box.innerText = `Validé reconnaissance pour ${data.eleve}`;
+        loadValidations();
+      })
+      .catch(() => {
+        box.style.display = "block";
+        box.className = "mt-3 alert alert-danger";
+        box.innerText = "Erreur validation reconnaissance";
+      });
+    return;
+  }
+
+  box.style.display = "block";
+  box.className = "mt-3 alert alert-warning";
+  box.innerText = "Flux non reconnu";
 }
 
-async function handleValidation(data) {
-    const valRef = firebase.database().ref(`eleves/${data.eleve}/validations`).push();
-    
-    // Structure de validation propre
-    const record = {
-        date: new Date().toISOString(),
-        type_flux: data.flux,
-        competence: data.type_competence || data.competence, // Support anciens formats
-        objectif_id: data.objectif || null,
-        ref_id_officiel: "", // Champ vide prêt pour plus tard
-        prof_validateur: "Professeur"
-    };
-
-    await valRef.set(record);
-
-    // Si Flux 1 (Objectif), on le marque "done" aussi dans l'objet objectif
-    if(data.flux === 1 && data.objectif) {
-        firebase.database().ref(`eleves/${data.eleve}/objectifs/${data.objectif}`).update({
-            done: true,
-            validation_prof: true
-        });
-    }
-    
-    chargerValidations(); // Refresh liste
-}
-
-// --- CHARGEMENT DONNÉES ---
-function chargerDonnees() {
-    // Liste Élèves
-    const cont = document.getElementById('liste-eleves'); cont.innerHTML = '';
-    allEleves.forEach(e => {
-        cont.innerHTML += `<div class="col-md-4"><div class="card p-3"><h5>${e.userCode}</h5><span class="badge bg-secondary">${e.classe}</span></div></div>`;
-    });
-
-    chargerValidations();
-}
-
-function chargerValidations() {
-    // Lit toutes les validations de tous les élèves (simulation boucle)
-    // Dans la vraie vie, il faudrait itérer sur tous les élèves
-    // Ici on montre l'exemple pour KA47
-    const tb = document.getElementById('table-validations'); tb.innerHTML = '';
-    firebase.database().ref(`eleves/KA47/validations`).on('value', (s) => {
-        const vals = s.val() || {};
-        Object.values(vals).forEach(v => {
-            tb.innerHTML += `<tr><td>${new Date(v.date).toLocaleDateString()}</td><td>KA47</td><td>Flux ${v.type_flux}</td><td>${v.competence}</td><td>${v.ref_id_officiel || '-'}</td></tr>`;
-        });
-    });
-}
+window.addEventListener("load", () => {
+  // Démarrage sur liste si admin ok
+  if (requireAdmin()) {
+    loadEleves();
+    loadValidations();
+  }
+});
