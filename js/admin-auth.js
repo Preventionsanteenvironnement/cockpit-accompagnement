@@ -1,4 +1,4 @@
-// admin-auth.js - Version V15 (Complet et Synchronisé)
+// admin-auth.js - Version V16 (Avec Badges Prof/Élève)
 
 const BDD_ELEVES_SECOURS = [
     { userCode: "KA47", classe: "B1AGO1" }, { userCode: "LU83", classe: "B1AGO1" }, { userCode: "MO12", classe: "B1AGO1" },
@@ -18,7 +18,6 @@ const sanitize = (id) => id.replace(/\./g, '_');
 
 // --- LISTE OFFICIELLE COMPLÈTE ---
 const REF_OFFICIEL = [
-    // COGNITIF
     { id: "C1.1", nom: "Accroître sa connaissance de soi", axe: "COG" },
     { id: "C1.2", nom: "Savoir penser de façon critique", axe: "COG" },
     { id: "C1.3", nom: "Connaître ses valeurs et besoins", axe: "COG" },
@@ -29,14 +28,10 @@ const REF_OFFICIEL = [
     { id: "C2.2", nom: "Gérer ses impulsions", axe: "COG" },
     { id: "C2.3", nom: "Résoudre des problèmes", axe: "COG" },
     { id: "C2.4", nom: "Savoir demander de l'aide", axe: "COG" },
-
-    // EMOTIONNEL
     { id: "E1.1", nom: "Comprendre les émotions", axe: "EMO" },
     { id: "E1.2", nom: "Identifier ses émotions", axe: "EMO" },
     { id: "E2.2", nom: "Exprimer ses émotions", axe: "EMO" },
     { id: "E2.3", nom: "Gérer son stress", axe: "EMO" },
-
-    // SOCIAL
     { id: "S1.1", nom: "Communiquer de façon efficace", axe: "SOC" },
     { id: "S1.2", nom: "Communiquer de façon empathique", axe: "SOC" },
     { id: "S1.3", nom: "Développer des liens prosociaux", axe: "SOC" },
@@ -113,6 +108,7 @@ window.fermerUnivers = function() {
     currentEleveCode = null;
 };
 
+// --- LOGIQUE OBJECTIFS (AVEC DISTINCTION PROF/ELEVE) ---
 function renderObjectifs(objData) {
     const list = document.getElementById('univ-objectifs-list');
     list.innerHTML = '';
@@ -126,9 +122,16 @@ function renderObjectifs(objData) {
         const statusClass = obj.done ? 'done' : 'todo';
         const icon = obj.done ? '✅' : '⏳';
         
+        const isPerso = obj.auteur === 'ELEVE';
+        const badgeAuteur = isPerso 
+            ? '<span class="badge bg-info text-white ms-2">👤 Initiative Élève</span>' 
+            : '<span class="badge bg-primary text-white ms-2">🏫 Contrat Prof</span>';
+
         const div = document.createElement('div');
         div.className = `objective-item ${statusClass}`;
-        div.innerHTML = `<div class="d-flex justify-content-between pe-4"><strong>${obj.titre}</strong><small class="text-muted">${icon}</small></div><div class="small text-muted fst-italic mt-1">${obj.mesure || ''}</div><i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>`;
+        if(isPerso) div.style.backgroundColor = "#e0f2fe";
+
+        div.innerHTML = `<div class="d-flex justify-content-between pe-4"><strong>${obj.titre} ${badgeAuteur}</strong><small class="text-muted">${icon}</small></div><div class="small text-muted fst-italic mt-1">${obj.mesure || ''}</div><i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>`;
         list.appendChild(div);
     });
 }
@@ -137,7 +140,8 @@ window.ajouterObjectif = async function() {
     const titre = prompt("Objectif ?"); if(!titre) return;
     const mesure = prompt("Critère / Détail ?");
     const newObjRef = firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs`).push();
-    await newObjRef.set({ titre: titre, mesure: mesure, done: false, date: new Date().toISOString() });
+    // Quand c'est le prof qui ajoute depuis le Cockpit, auteur = PROF
+    await newObjRef.set({ titre: titre, mesure: mesure, done: false, auteur: "PROF", date: new Date().toISOString() });
 }
 
 window.supprimerObjectif = async function(key) {
@@ -166,7 +170,6 @@ function renderTimeline(d) {
     let a=[]; Object.keys(d).forEach(k=>{ if(d[k].valide) a.push({...d[k], nom: k}) });
     a.sort((x,y)=>new Date(y.date)-new Date(x.date));
     a.forEach(i => {
-        // Retrouver le nom officiel
         const ref = REF_OFFICIEL.find(r => sanitize(r.id) === i.nom.replace('_','.'));
         const displayNom = ref ? ref.nom : i.nom;
         el.innerHTML += `<div class="timeline-item"><div class="timeline-date">${new Date(i.date).toLocaleDateString()}</div><div class="card p-2 shadow-sm"><small><strong>${displayNom}</strong> ${"⭐".repeat(i.niveau)}</small><br><em class="small text-muted">${i.preuve}</em></div></div>`;
