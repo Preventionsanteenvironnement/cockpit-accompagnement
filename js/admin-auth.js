@@ -1,4 +1,4 @@
-// admin-auth.js - Version V13 : Avec Gestion des Objectifs
+// admin-auth.js - Version V15 (Complet et Synchronisé)
 
 const BDD_ELEVES_SECOURS = [
     { userCode: "KA47", classe: "B1AGO1" }, { userCode: "LU83", classe: "B1AGO1" }, { userCode: "MO12", classe: "B1AGO1" },
@@ -15,16 +15,35 @@ let currentEditId = null;
 let charts = { radar: null, context: null };
 
 const sanitize = (id) => id.replace(/\./g, '_');
+
+// --- LISTE OFFICIELLE COMPLÈTE ---
 const REF_OFFICIEL = [
-    { id: "C1.1", nom: "Accroître sa connaissance de soi", axe: "COG" }, { id: "C1.2", nom: "Savoir penser de façon critique", axe: "COG" },
-    { id: "C1.3", nom: "Connaître ses valeurs et besoins", axe: "COG" }, { id: "C1.4", nom: "Prendre des décisions constructives", axe: "COG" },
-    { id: "C1.5", nom: "S’auto-évaluer positivement", axe: "COG" }, { id: "C1.6", nom: "Renforcer sa pleine attention", axe: "COG" },
-    { id: "E1.1", nom: "Comprendre les émotions", axe: "EMO" }, { id: "E1.2", nom: "Identifier ses émotions", axe: "EMO" },
-    { id: "S1.1", nom: "Communiquer de façon efficace", axe: "SOC" }, { id: "S1.2", nom: "Communiquer de façon empathique", axe: "SOC" },
-    { id: "S1.3", nom: "Développer des liens prosociaux", axe: "SOC" }
+    // COGNITIF
+    { id: "C1.1", nom: "Accroître sa connaissance de soi", axe: "COG" },
+    { id: "C1.2", nom: "Savoir penser de façon critique", axe: "COG" },
+    { id: "C1.3", nom: "Connaître ses valeurs et besoins", axe: "COG" },
+    { id: "C1.4", nom: "Prendre des décisions constructives", axe: "COG" },
+    { id: "C1.5", nom: "S’auto-évaluer positivement", axe: "COG" },
+    { id: "C1.6", nom: "Renforcer sa pleine attention", axe: "COG" },
+    { id: "C2.1", nom: "Atteindre ses buts personnels", axe: "COG" },
+    { id: "C2.2", nom: "Gérer ses impulsions", axe: "COG" },
+    { id: "C2.3", nom: "Résoudre des problèmes", axe: "COG" },
+    { id: "C2.4", nom: "Savoir demander de l'aide", axe: "COG" },
+
+    // EMOTIONNEL
+    { id: "E1.1", nom: "Comprendre les émotions", axe: "EMO" },
+    { id: "E1.2", nom: "Identifier ses émotions", axe: "EMO" },
+    { id: "E2.2", nom: "Exprimer ses émotions", axe: "EMO" },
+    { id: "E2.3", nom: "Gérer son stress", axe: "EMO" },
+
+    // SOCIAL
+    { id: "S1.1", nom: "Communiquer de façon efficace", axe: "SOC" },
+    { id: "S1.2", nom: "Communiquer de façon empathique", axe: "SOC" },
+    { id: "S1.3", nom: "Développer des liens prosociaux", axe: "SOC" },
+    { id: "S2.1", nom: "S'affirmer / Résister pression", axe: "SOC" },
+    { id: "S2.2", nom: "Résoudre les conflits", axe: "SOC" }
 ];
 
-// --- INIT ---
 async function chargerDonneesAutorisations() {
     try {
         const snap = await firebase.database().ref('accompagnement/autorisations').once('value');
@@ -65,7 +84,6 @@ function afficherTableau(liste) {
     });
 }
 
-// --- UNIVERS ÉLÈVE & OBJECTIFS ---
 window.ouvrirUnivers = function(code, classe) {
     currentEleveCode = code;
     document.getElementById('main-list-view').style.display = 'none';
@@ -74,18 +92,16 @@ window.ouvrirUnivers = function(code, classe) {
     document.getElementById('univ-nom').innerText = code;
     document.getElementById('univ-classe').innerText = classe;
     
-    // Auth Button
     const auth = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) ? authData.ELEVES_AUTORISES[code].autorise : false;
     updateBoutonActionUnivers(auth);
     
-    // Live Data
     const db = firebase.database().ref(`accompagnement/eleves/${code}`);
     db.off();
     db.on('value', (snap) => {
         const data = snap.val() || { competences_validees: {}, objectifs: {} };
         renderUniversCharts(data);
         renderTimeline(data.competences_validees);
-        renderObjectifs(data.objectifs); // NOUVEAU
+        renderObjectifs(data.objectifs);
     });
 };
 
@@ -97,16 +113,12 @@ window.fermerUnivers = function() {
     currentEleveCode = null;
 };
 
-// --- GESTION OBJECTIFS ---
 function renderObjectifs(objData) {
     const list = document.getElementById('univ-objectifs-list');
     list.innerHTML = '';
     const keys = objData ? Object.keys(objData) : [];
     
-    if(keys.length === 0) {
-        document.getElementById('no-obj-msg').style.display = 'block';
-        return;
-    }
+    if(keys.length === 0) { document.getElementById('no-obj-msg').style.display = 'block'; return; }
     document.getElementById('no-obj-msg').style.display = 'none';
 
     keys.forEach(key => {
@@ -116,39 +128,22 @@ function renderObjectifs(objData) {
         
         const div = document.createElement('div');
         div.className = `objective-item ${statusClass}`;
-        div.innerHTML = `
-            <div class="d-flex justify-content-between pe-4">
-                <strong>${obj.titre}</strong>
-                <small class="text-muted">${icon}</small>
-            </div>
-            <div class="small text-muted fst-italic mt-1">${obj.mesure || ''}</div>
-            <i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>
-        `;
+        div.innerHTML = `<div class="d-flex justify-content-between pe-4"><strong>${obj.titre}</strong><small class="text-muted">${icon}</small></div><div class="small text-muted fst-italic mt-1">${obj.mesure || ''}</div><i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>`;
         list.appendChild(div);
     });
 }
 
 window.ajouterObjectif = async function() {
-    const titre = prompt("Quel est l'objectif ? (ex: Lever la main 1 fois)");
-    if(!titre) return;
-    const mesure = prompt("Critère de réussite / Détail ? (ex: En cours d'Anglais)");
-    
+    const titre = prompt("Objectif ?"); if(!titre) return;
+    const mesure = prompt("Critère / Détail ?");
     const newObjRef = firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs`).push();
-    await newObjRef.set({
-        titre: titre,
-        mesure: mesure,
-        done: false,
-        date: new Date().toISOString()
-    });
+    await newObjRef.set({ titre: titre, mesure: mesure, done: false, date: new Date().toISOString() });
 }
 
 window.supprimerObjectif = async function(key) {
-    if(confirm("Supprimer cet objectif ?")) {
-        await firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs/${key}`).remove();
-    }
+    if(confirm("Supprimer ?")) { await firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs/${key}`).remove(); }
 }
 
-// --- CHARTS (Sans changement) ---
 function renderUniversCharts(d) {
     const s = { "COG": 0, "EMO": 0, "SOC": 0 }; const c = { "COURS": 0, "ATELIER": 0, "STAGE": 0, "AUTRE": 0 }; let t = 0;
     Object.keys(d.competences_validees||{}).forEach(k => {
@@ -171,7 +166,10 @@ function renderTimeline(d) {
     let a=[]; Object.keys(d).forEach(k=>{ if(d[k].valide) a.push({...d[k], nom: k}) });
     a.sort((x,y)=>new Date(y.date)-new Date(x.date));
     a.forEach(i => {
-        el.innerHTML += `<div class="timeline-item"><div class="timeline-date">${new Date(i.date).toLocaleDateString()}</div><div class="card p-2 shadow-sm"><small><strong>${i.nom}</strong> ${"⭐".repeat(i.niveau)}</small><br><em class="small text-muted">${i.preuve}</em></div></div>`;
+        // Retrouver le nom officiel
+        const ref = REF_OFFICIEL.find(r => sanitize(r.id) === i.nom.replace('_','.'));
+        const displayNom = ref ? ref.nom : i.nom;
+        el.innerHTML += `<div class="timeline-item"><div class="timeline-date">${new Date(i.date).toLocaleDateString()}</div><div class="card p-2 shadow-sm"><small><strong>${displayNom}</strong> ${"⭐".repeat(i.niveau)}</small><br><em class="small text-muted">${i.preuve}</em></div></div>`;
     });
 }
 
@@ -186,7 +184,6 @@ async function setAuth(val) {
     filtrerTableau();
 }
 
-// --- EDITEUR & PARAMETRES (Compactés pour la place) ---
 window.ouvrirBibliotheque = async function() {
     const m = new bootstrap.Modal(document.getElementById('modalLibrary'));
     const s = await firebase.database().ref('accompagnement/contenu_pedagogique').once('value');
