@@ -1,4 +1,4 @@
-// admin-auth.js - Version V17 (Réparé & Complet)
+// admin-auth.js - Version V18 (Compatible Nouveau Système Objectifs)
 
 const BDD_ELEVES_SECOURS = [
     { userCode: "KA47", classe: "B1AGO1" }, { userCode: "LU83", classe: "B1AGO1" }, { userCode: "MO12", classe: "B1AGO1" },
@@ -9,27 +9,10 @@ const BDD_ELEVES_SECOURS = [
 
 let allEleves = BDD_ELEVES_SECOURS; 
 let authData = { ELEVES_AUTORISES: {} };
-let libraryData = {}; 
 let currentEleveCode = null;
-let currentEditId = null;
 let charts = { radar: null, context: null };
 
-const sanitize = (id) => id.replace(/\./g, '_');
-
-// REF OFFICIEL
-const REF_OFFICIEL = [
-    { id: "C1.1", nom: "Accroître sa connaissance de soi", axe: "COG" }, { id: "C1.2", nom: "Savoir penser de façon critique", axe: "COG" },
-    { id: "C1.3", nom: "Connaître ses valeurs et besoins", axe: "COG" }, { id: "C1.4", nom: "Prendre des décisions constructives", axe: "COG" },
-    { id: "C1.5", nom: "S’auto-évaluer positivement", axe: "COG" }, { id: "C1.6", nom: "Renforcer sa pleine attention", axe: "COG" },
-    { id: "C2.1", nom: "Atteindre ses buts personnels", axe: "COG" }, { id: "C2.2", nom: "Gérer ses impulsions", axe: "COG" },
-    { id: "C2.3", nom: "Résoudre des problèmes", axe: "COG" }, { id: "C2.4", nom: "Savoir demander de l'aide", axe: "COG" },
-    { id: "E1.1", nom: "Comprendre les émotions", axe: "EMO" }, { id: "E1.2", nom: "Identifier ses émotions", axe: "EMO" },
-    { id: "E2.2", nom: "Exprimer ses émotions", axe: "EMO" }, { id: "E2.3", nom: "Gérer son stress", axe: "EMO" },
-    { id: "S1.1", nom: "Communiquer de façon efficace", axe: "SOC" }, { id: "S1.2", nom: "Communiquer de façon empathique", axe: "SOC" },
-    { id: "S1.3", nom: "Développer des liens prosociaux", axe: "SOC" }, { id: "S2.1", nom: "S'affirmer / Résister pression", axe: "SOC" },
-    { id: "S2.2", nom: "Résoudre les conflits", axe: "SOC" }
-];
-
+// --- CHARGEMENT ---
 async function chargerDonneesAutorisations() {
     try {
         const snap = await firebase.database().ref('accompagnement/autorisations').once('value');
@@ -70,6 +53,7 @@ function afficherTableau(liste) {
     });
 }
 
+// --- UNIVERS ÉLÈVE ---
 window.ouvrirUnivers = function(code, classe) {
     currentEleveCode = code;
     document.getElementById('main-list-view').style.display = 'none';
@@ -78,16 +62,14 @@ window.ouvrirUnivers = function(code, classe) {
     document.getElementById('univ-nom').innerText = code;
     document.getElementById('univ-classe').innerText = classe;
     
-    // Auth Button
-    const isAuth = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) ? authData.ELEVES_AUTORISES[code].autorise : false;
-    updateBoutonActionUnivers(isAuth);
+    const auth = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) ? authData.ELEVES_AUTORISES[code].autorise : false;
+    updateBoutonActionUnivers(auth);
     
     const db = firebase.database().ref(`accompagnement/eleves/${code}`);
     db.off();
     db.on('value', (snap) => {
         const data = snap.val() || { competences_validees: {}, objectifs: {} };
         renderUniversCharts(data);
-        renderTimeline(data.competences_validees);
         renderObjectifs(data.objectifs);
     });
 };
@@ -100,7 +82,7 @@ window.fermerUnivers = function() {
     currentEleveCode = null;
 };
 
-// --- OBJECTIFS ---
+// --- OBJECTIFS V18 ---
 function renderObjectifs(objData) {
     const list = document.getElementById('univ-objectifs-list'); list.innerHTML = '';
     const keys = objData ? Object.keys(objData) : [];
@@ -109,128 +91,81 @@ function renderObjectifs(objData) {
 
     keys.forEach(key => {
         const obj = objData[key];
-        const statusClass = obj.done ? 'done' : 'todo';
         const icon = obj.done ? '✅' : '⏳';
-        const badge = obj.auteur === 'ELEVE' ? '<span class="badge bg-info">Elève</span>' : '<span class="badge bg-primary">Prof</span>';
         
+        let typeBadge = "";
+        if(obj.type === 'COG') typeBadge = '<span class="badge bg-primary">Cog</span>';
+        if(obj.type === 'EMO') typeBadge = '<span class="badge bg-danger">Emo</span>';
+        if(obj.type === 'SOC') typeBadge = '<span class="badge bg-info">Soc</span>';
+
         const div = document.createElement('div');
-        div.className = `objective-item ${statusClass}`;
-        div.innerHTML = `<div class="d-flex justify-content-between pe-4"><strong>${obj.titre} ${badge}</strong><small>${icon}</small></div><div class="small text-muted">${obj.matiere || ''}</div><i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>`;
+        div.className = `objective-item ${obj.done ? 'done' : ''}`;
+        div.innerHTML = `
+            <div class="d-flex justify-content-between pe-4">
+                <strong>${obj.titre} ${typeBadge}</strong>
+                <small>${icon}</small>
+            </div>
+            <div class="small text-muted mt-1">
+                ${obj.context || 'Autre'} • ${obj.detail || ''} • 📅 ${obj.date_cible || '?'}
+            </div>
+            <i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>
+        `;
         list.appendChild(div);
     });
 }
 
 window.ajouterObjectif = async function() {
-    const titre = prompt("Objectif ?"); if(!titre) return;
-    const mesure = prompt("Critère / Détail ?");
-    firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs`).push({ titre: titre, mesure: mesure, done: false, auteur: "PROF", date: new Date().toISOString() });
+    alert("Pour l'instant, passez par l'application élève pour créer des objectifs V18 complexes.");
 }
 
 window.supprimerObjectif = async function(key) {
     if(confirm("Supprimer ?")) { await firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs/${key}`).remove(); }
 }
 
-// --- CHARTS ---
+// --- CHARTS (Simplifiés pour V18) ---
 function renderUniversCharts(d) {
-    const s = { "COG": 0, "EMO": 0, "SOC": 0 }; const c = { "COURS": 0, "ATELIER": 0, "STAGE": 0, "AUTRE": 0 }; let t = 0;
-    Object.keys(d.competences_validees||{}).forEach(k => {
-        const i = d.competences_validees[k];
-        if(i.valide) {
-            const ax = REF_OFFICIEL.find(r => sanitize(r.id)===k.replace('_','.'))?.axe || "COG";
-            s[ax]++; t++; c[i.contexte||"AUTRE"]++;
+    // Calcul simplifié basé sur les objectifs validés
+    const s = { "COG": 0, "EMO": 0, "SOC": 0 };
+    let t = 0;
+    
+    // On compte les objectifs validés
+    Object.values(d.objectifs || {}).forEach(obj => {
+        if(obj.done && obj.type && s[obj.type] !== undefined) {
+            s[obj.type]++;
+            t++;
         }
     });
+
     document.getElementById('univ-total-valid').innerText = t;
+    
     if(charts.radar) charts.radar.destroy();
-    charts.radar = new Chart(document.getElementById('univRadarChart'), { type: 'radar', data: { labels: ['Cognitif', 'Social', 'Émotionnel'], datasets: [{ label: 'Niveau', data: [s.COG, s.SOC, s.EMO], backgroundColor: 'rgba(79, 70, 229, 0.2)', borderColor: '#4f46e5' }] } });
-    if(charts.context) charts.context.destroy();
-    charts.context = new Chart(document.getElementById('univContextChart'), { type: 'doughnut', data: { labels: ['Cours', 'Atelier', 'Stage', 'Autre'], datasets: [{ data: [c.COURS, c.ATELIER, c.STAGE, c.AUTRE], backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#6b7280'] }] } });
-}
-
-function renderTimeline(d) {
-    const el = document.getElementById('univ-timeline'); el.innerHTML='';
-    if(!d) { el.innerHTML='<div class="text-muted p-2">Vide</div>'; return; }
-    let a=[]; Object.keys(d).forEach(k=>{ if(d[k].valide) a.push({...d[k], nom: k}) });
-    a.sort((x,y)=>new Date(y.date)-new Date(x.date));
-    a.forEach(i => {
-        const ref = REF_OFFICIEL.find(r => sanitize(r.id) === i.nom.replace('_','.'));
-        const displayNom = ref ? ref.nom : i.nom;
-        el.innerHTML += `<div class="timeline-item"><div class="timeline-date">${new Date(i.date).toLocaleDateString()}</div><div class="card p-2 shadow-sm"><small><strong>${displayNom}</strong> ${"⭐".repeat(i.niveau)}</small><br><em class="small text-muted">${i.preuve}</em></div></div>`;
+    charts.radar = new Chart(document.getElementById('univRadarChart'), {
+        type: 'bar', // Bar est plus lisible pour des quantités
+        data: { 
+            labels: ['Cognitif', 'Social', 'Émotionnel'], 
+            datasets: [{ 
+                label: 'Réussites', 
+                data: [s.COG, s.SOC, s.EMO], 
+                backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899'] 
+            }] 
+        },
+        options: { scales: { y: { beginAtZero: true, suggestedMax: 5 } } }
     });
 }
 
-function updateBoutonActionUnivers(estAutorise) {
-    const btn = document.getElementById('univ-btn-action');
-    // Important : on enlève les écouteurs précédents pour éviter les conflits
-    const newBtn = btn.cloneNode(true);
-    btn.parentNode.replaceChild(newBtn, btn);
-    
-    if(estAutorise) { 
-        newBtn.innerText = "Bloquer l'accès"; 
-        newBtn.className = "btn btn-outline-danger rounded-pill px-4"; 
-        newBtn.onclick = () => basculerAutorisation(currentEleveCode, true); 
-    } else { 
-        newBtn.innerText = "Autoriser l'accès"; 
-        newBtn.className = "btn btn-success rounded-pill px-4"; 
-        newBtn.onclick = () => basculerAutorisation(currentEleveCode, false); 
-    }
+function updateBoutonActionUnivers(auth) {
+    const b = document.getElementById('univ-btn-action');
+    const n = b.cloneNode(true); b.parentNode.replaceChild(n, b);
+    if(auth) { n.innerText="Bloquer"; n.className="btn btn-outline-danger rounded-pill px-4"; n.onclick=()=>setAuth(true); }
+    else { n.innerText="Autoriser"; n.className="btn btn-success rounded-pill px-4"; n.onclick=()=>setAuth(false); }
+}
+async function setAuth(val) {
+    await firebase.database().ref(`accompagnement/autorisations/${currentEleveCode}`).update({autorise: !val});
+    authData.ELEVES_AUTORISES[currentEleveCode] = { autorise: !val };
+    filtrerTableau();
 }
 
-async function basculerAutorisation(code, statutActuel) {
-    const nouveauStatut = !statutActuel;
-    
-    // 1. Mise à jour Firebase
-    try {
-        await firebase.database().ref(`accompagnement/autorisations/${code}`).update({ autorise: nouveauStatut });
-        
-        // 2. Mise à jour Locale
-        if (!authData.ELEVES_AUTORISES) authData.ELEVES_AUTORISES = {};
-        if (!authData.ELEVES_AUTORISES[code]) authData.ELEVES_AUTORISES[code] = {};
-        authData.ELEVES_AUTORISES[code].autorise = nouveauStatut;
-        
-        // 3. Rafraîchir l'interface
-        filtrerTableau();
-        if(currentEleveCode === code) updateBoutonActionUnivers(nouveauStatut);
-        
-    } catch (e) { alert("Erreur connexion: " + e); }
-}
-
-// --- EDITEUR ---
-window.ouvrirBibliotheque = async function() {
-    const m = new bootstrap.Modal(document.getElementById('modalLibrary'));
-    const s = await firebase.database().ref('accompagnement/contenu_pedagogique').once('value');
-    libraryData = s.val() || {};
-    const lc = document.getElementById('lib-list-comp'); lc.innerHTML = '';
-    REF_OFFICIEL.forEach(r => {
-        const id = sanitize(r.id); const ok = libraryData[id]?'✅':'📝';
-        const a = document.createElement('a'); a.className="list-group-item list-group-item-action"; a.innerHTML=`<b>${r.id}</b> ${ok}<br><small>${r.nom}</small>`;
-        a.onclick=()=>{ chargerEditeur(r, id); }; lc.appendChild(a);
-    });
-    document.getElementById('lib-empty-state').style.display='block'; document.getElementById('lib-editor-area').style.display='none'; m.show();
-}
-function chargerEditeur(r, id) {
-    currentEditId = id; document.getElementById('lib-empty-state').style.display='none'; document.getElementById('lib-editor-area').style.display='block';
-    document.getElementById('lib-edit-title').innerText = r.id;
-    const d = libraryData[id]||{};
-    document.getElementById('edit-titre-eleve').value=d.titre_eleve||"";
-    document.getElementById('edit-science').value=d.explication_scientifique||"";
-    document.getElementById('edit-pourquoi').value=d.pourquoi_scolaire||"";
-    document.getElementById('edit-lien').value=d.lien_externe||"";
-    document.getElementById('edit-outils').value=(d.boite_a_outils||[]).join('\n');
-}
-window.sauvegarderBibliotheque = async function() {
-    if(!currentEditId) return;
-    const d = {
-        titre_eleve: document.getElementById('edit-titre-eleve').value,
-        explication_scientifique: document.getElementById('edit-science').value,
-        pourquoi_scolaire: document.getElementById('edit-pourquoi').value,
-        lien_externe: document.getElementById('edit-lien').value,
-        boite_a_outils: document.getElementById('edit-outils').value.split('\n')
-    };
-    libraryData[currentEditId] = d;
-    await firebase.database().ref(`accompagnement/contenu_pedagogique/${currentEditId}`).set(d);
-    alert("✅");
-}
+window.ouvrirBibliotheque = function() { alert("La bibliothèque est maintenant intégrée en dur dans l'App V18."); }
 window.ouvrirParametres=async()=>{ new bootstrap.Modal(document.getElementById('modalParams')).show(); }
 window.sauvegarderParams=async()=>{
     const d = { ouverture: document.getElementById('cfg-ouverture').value, fermeture: document.getElementById('cfg-fermeture').value, maintenance: document.getElementById('cfg-maintenance').checked, jours: [1,2,3,4,5] };
