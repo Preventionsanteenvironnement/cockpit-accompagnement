@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cockpit Master - Pilotage CPS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -12,18 +13,17 @@
         body { background-color: var(--primary-bg); font-family: 'Outfit', sans-serif; color: var(--text-dark); padding-bottom: 50px; }
         .navbar { background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1rem 2rem; }
         .card-modern { border: none; background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .card-header-modern { padding: 1.5rem; font-weight: 700; border-bottom: 1px solid #f3f4f6; }
+        .card-header-modern { padding: 1.5rem; font-weight: 700; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
         .table-modern th { font-size: 0.75rem; text-transform: uppercase; color: #6b7280; }
-        .btn-action { border-radius: 8px; padding: 0.4rem 1rem; }
-        
-        /* Vue Univers */
-        #student-universe { display: none; }
-        .timeline-item { padding-left: 20px; border-left: 2px solid #e5e7eb; position: relative; padding-bottom: 20px; }
-        .timeline-item::before { content: ''; position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color); }
-
-        /* Style pour l'éditeur */
         .editor-label { font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; margin-bottom: 5px; display: block; }
         .editor-help { font-size: 0.8rem; color: #9ca3af; font-style: italic; margin-bottom: 10px; display: block; }
+        
+        /* Objectifs */
+        .objective-item { border-left: 4px solid #ddd; padding: 10px 15px; background: #f9fafb; margin-bottom: 10px; border-radius: 8px; position: relative; }
+        .objective-item.done { border-left-color: #10b981; background: #ecfdf5; opacity: 0.8; }
+        .objective-item.todo { border-left-color: #f59e0b; }
+        .delete-obj { position: absolute; top: 10px; right: 10px; color: #ef4444; cursor: pointer; opacity: 0.5; }
+        .delete-obj:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -53,16 +53,33 @@
         <div class="card-modern"><div class="table-responsive"><table class="table table-modern table-hover mb-0"><thead class="bg-light"><tr><th class="ps-4">Identité</th><th>Classe</th><th>Statut</th><th class="text-end pe-4">Action</th></tr></thead><tbody id="liste-eleves"></tbody></table></div></div>
     </div>
 
-    <div id="student-universe">
+    <div id="student-universe" style="display:none;">
         <div class="row mb-4 align-items-center">
             <div class="col-md-8"><h1 class="display-5 fw-bold mb-0"><span id="univ-nom" class="text-primary">--</span></h1><p class="lead text-muted mb-0">Classe : <span id="univ-classe">--</span></p></div>
             <div class="col-md-4 text-end"><button id="univ-btn-action" class="btn btn-lg btn-danger rounded-pill px-5">Bloquer</button></div>
         </div>
+        
         <div class="row g-4">
             <div class="col-lg-5">
-                <div class="card-modern mb-4 h-100"><div class="card-header-modern">🎯 Radar de Compétences</div><div class="card-body"><div style="height: 350px;"><canvas id="univRadarChart"></canvas></div></div></div>
+                <div class="card-modern mb-4 h-100">
+                    <div class="card-header-modern">🎯 Radar de Compétences</div>
+                    <div class="card-body"><div style="height: 350px;"><canvas id="univRadarChart"></canvas></div></div>
+                </div>
             </div>
+
             <div class="col-lg-7">
+                <div class="card-modern mb-4 border-primary border-2">
+                    <div class="card-header-modern bg-primary-subtle text-primary">
+                        <span>🎯 Contrat d'Objectifs (SMART)</span>
+                        <button class="btn btn-sm btn-primary rounded-pill" onclick="ajouterObjectif()">➕ Nouveau Défi</button>
+                    </div>
+                    <div class="card-body bg-light">
+                        <div id="univ-objectifs-list">
+                            </div>
+                        <div id="no-obj-msg" class="text-center text-muted small py-3">Aucun objectif en cours.</div>
+                    </div>
+                </div>
+
                 <div class="row g-4">
                     <div class="col-md-6"><div class="card-modern h-100"><div class="card-header-modern">📊 Contextes</div><div class="card-body d-flex justify-content-center"><div style="height: 200px; width: 100%;"><canvas id="univContextChart"></canvas></div></div></div></div>
                     <div class="col-md-6"><div class="card-modern h-100 bg-primary text-white"><div class="card-body text-center d-flex flex-column justify-content-center"><h1 class="display-1 fw-bold" id="univ-total-valid">0</h1><p class="opacity-75">Réussites Validées</p></div></div></div>
@@ -83,76 +100,28 @@
             <div class="modal-body bg-light">
                 <div class="row h-100">
                     <div class="col-md-4 border-end">
-                        <label class="form-label fw-bold">Choisir une compétence à modifier :</label>
-                        <div class="list-group" id="lib-list-comp">
-                            </div>
+                        <label class="form-label fw-bold">Choisir une compétence :</label>
+                        <div class="list-group" id="lib-list-comp"></div>
                     </div>
-                    
                     <div class="col-md-8">
                         <div id="lib-editor-area" style="display:none;">
                             <h4 class="mb-3 text-primary" id="lib-edit-title">--</h4>
-                            
-                            <div class="card p-3 mb-3 border-0 shadow-sm">
-                                <label class="editor-label">Titre Élève (Positif & Actionnable)</label>
-                                <input type="text" id="edit-titre-eleve" class="form-control mb-1 fw-bold">
-                                <span class="editor-help">Ex: "Savoir ce que je vaux" au lieu de "Connaissance de soi"</span>
-                            </div>
-
-                            <div class="card p-3 mb-3 border-0 shadow-sm">
-                                <label class="editor-label">Explication Scientifique (Vulgarisée)</label>
-                                <textarea id="edit-science" class="form-control mb-1" rows="3"></textarea>
-                                <span class="editor-help">Explique le mécanisme (cerveau, émotion) simplement.</span>
-                            </div>
-
-                            <div class="card p-3 mb-3 border-0 shadow-sm">
-                                <label class="editor-label">Pourquoi c'est utile (Scolaire/Pro)</label>
-                                <textarea id="edit-pourquoi" class="form-control mb-1" rows="2"></textarea>
-                                <span class="editor-help">Le bénéfice concret pour l'élève (stage, oral, examen).</span>
-                            </div>
-
-                            <div class="card p-3 mb-3 border-0 shadow-sm">
-                                <label class="editor-label">Boîte à Outils & Exercices</label>
-                                <textarea id="edit-outils" class="form-control mb-1" rows="4"></textarea>
-                                <span class="editor-help">Un conseil ou exercice par ligne.</span>
-                            </div>
+                            <div class="card p-3 mb-3 border-0 shadow-sm"><label class="editor-label">Titre Élève</label><input type="text" id="edit-titre-eleve" class="form-control fw-bold"></div>
+                            <div class="card p-3 mb-3 border-0 shadow-sm"><label class="editor-label">Explication Scientifique</label><textarea id="edit-science" class="form-control" rows="3"></textarea></div>
+                            <div class="card p-3 mb-3 border-0 shadow-sm"><label class="editor-label">Utilité Scolaire</label><textarea id="edit-pourquoi" class="form-control" rows="2"></textarea></div>
+                            <div class="card p-3 mb-3 border-0 shadow-sm"><label class="editor-label">Outils & Exercices</label><textarea id="edit-outils" class="form-control" rows="4"></textarea></div>
+                            <div class="card p-3 mb-4 border-0 shadow-sm bg-white"><label class="editor-label text-primary">🔗 Lien Exercice (GitHub)</label><div class="input-group"><span class="input-group-text bg-light border-0"><i class="fas fa-link"></i></span><input type="text" id="edit-lien" class="form-control bg-light border-0" placeholder="https://..."></div></div>
                         </div>
-                        
-                        <div id="lib-empty-state" class="text-center py-5 text-muted">
-                            <i class="fas fa-arrow-left mb-3" style="font-size: 2rem;"></i>
-                            <p>Sélectionnez une compétence à gauche pour commencer à écrire.</p>
-                        </div>
+                        <div id="lib-empty-state" class="text-center py-5 text-muted"><p>Sélectionnez une compétence.</p></div>
                     </div>
                 </div>
             </div>
-            <div class="card p-3 mb-4 border-0 shadow-sm bg-white">
-    <label class="editor-label text-primary">🔗 Lien vers l'exercice (Page GitHub)</label>
-    <div class="input-group">
-        <span class="input-group-text bg-light border-0"><i class="fas fa-link"></i></span>
-        <input type="text" id="edit-lien" class="form-control bg-light border-0" placeholder="Collez l'adresse ici (https://...)" style="font-weight:bold;">
-    </div>
-    <span class="editor-help mt-2">L'élève pourra cliquer dessus pour accéder directement à votre cours.</span>
-</div>
-            <div class="modal-footer bg-white">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <button type="button" class="btn btn-success px-4" onclick="sauvegarderBibliotheque()">💾 Enregistrer les modifications</button>
-            </div>
+            <div class="modal-footer bg-white"><button type="button" class="btn btn-success px-4" onclick="sauvegarderBibliotheque()">💾 Enregistrer</button></div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="modalParams" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-dark text-white"><h5 class="modal-title">⚙️ Configuration École</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body">
-                <div class="row mb-3"><div class="col-6"><label>Ouverture (h)</label><input type="number" id="cfg-ouverture" class="form-control"></div><div class="col-6"><label>Fermeture (h)</label><input type="number" id="cfg-fermeture" class="form-control"></div></div>
-                <div class="d-flex justify-content-between mb-4 border p-2 rounded"><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="1" id="d1"><label for="d1">L</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="2" id="d2"><label for="d2">M</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="3" id="d3"><label for="d3">M</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="4" id="d4"><label for="d4">J</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="5" id="d5"><label for="d5">V</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="6" id="d6"><label for="d6">S</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="0" id="d0"><label for="d0">D</label></div></div>
-                <div class="form-check form-switch p-3 bg-danger-subtle rounded"><input class="form-check-input" type="checkbox" id="cfg-maintenance"><label class="form-check-label text-danger fw-bold" for="cfg-maintenance">⛔ Mode Vacances (Tout fermer)</label></div>
-            </div>
-            <div class="modal-footer"><button type="button" class="btn btn-primary w-100" onclick="sauvegarderParams()">💾 Appliquer à tous</button></div>
-        </div>
-    </div>
-</div>
+<div class="modal fade" id="modalParams" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content border-0 shadow-lg"><div class="modal-header bg-dark text-white"><h5 class="modal-title">⚙️ Configuration</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="row mb-3"><div class="col-6"><label>Ouverture</label><input type="number" id="cfg-ouverture" class="form-control"></div><div class="col-6"><label>Fermeture</label><input type="number" id="cfg-fermeture" class="form-control"></div></div><div class="d-flex justify-content-between mb-4 border p-2 rounded"><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="1" id="d1"><label for="d1">L</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="2" id="d2"><label for="d2">M</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="3" id="d3"><label for="d3">M</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="4" id="d4"><label for="d4">J</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="5" id="d5"><label for="d5">V</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="6" id="d6"><label for="d6">S</label></div><div class="form-check"><input class="form-check-input day-check" type="checkbox" value="0" id="d0"><label for="d0">D</label></div></div><div class="form-check form-switch p-3 bg-danger-subtle rounded"><input class="form-check-input" type="checkbox" id="cfg-maintenance"><label class="form-check-label text-danger fw-bold" for="cfg-maintenance">⛔ Vacances</label></div></div><div class="modal-footer"><button type="button" class="btn btn-primary w-100" onclick="sauvegarderParams()">💾 Appliquer</button></div></div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
