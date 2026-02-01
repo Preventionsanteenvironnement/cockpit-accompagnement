@@ -1,4 +1,4 @@
-// admin-auth.js - Version V16 (Avec Badges Prof/Élève)
+// admin-auth.js - Version V17 (Réparé & Complet)
 
 const BDD_ELEVES_SECOURS = [
     { userCode: "KA47", classe: "B1AGO1" }, { userCode: "LU83", classe: "B1AGO1" }, { userCode: "MO12", classe: "B1AGO1" },
@@ -16,26 +16,17 @@ let charts = { radar: null, context: null };
 
 const sanitize = (id) => id.replace(/\./g, '_');
 
-// --- LISTE OFFICIELLE COMPLÈTE ---
+// REF OFFICIEL
 const REF_OFFICIEL = [
-    { id: "C1.1", nom: "Accroître sa connaissance de soi", axe: "COG" },
-    { id: "C1.2", nom: "Savoir penser de façon critique", axe: "COG" },
-    { id: "C1.3", nom: "Connaître ses valeurs et besoins", axe: "COG" },
-    { id: "C1.4", nom: "Prendre des décisions constructives", axe: "COG" },
-    { id: "C1.5", nom: "S’auto-évaluer positivement", axe: "COG" },
-    { id: "C1.6", nom: "Renforcer sa pleine attention", axe: "COG" },
-    { id: "C2.1", nom: "Atteindre ses buts personnels", axe: "COG" },
-    { id: "C2.2", nom: "Gérer ses impulsions", axe: "COG" },
-    { id: "C2.3", nom: "Résoudre des problèmes", axe: "COG" },
-    { id: "C2.4", nom: "Savoir demander de l'aide", axe: "COG" },
-    { id: "E1.1", nom: "Comprendre les émotions", axe: "EMO" },
-    { id: "E1.2", nom: "Identifier ses émotions", axe: "EMO" },
-    { id: "E2.2", nom: "Exprimer ses émotions", axe: "EMO" },
-    { id: "E2.3", nom: "Gérer son stress", axe: "EMO" },
-    { id: "S1.1", nom: "Communiquer de façon efficace", axe: "SOC" },
-    { id: "S1.2", nom: "Communiquer de façon empathique", axe: "SOC" },
-    { id: "S1.3", nom: "Développer des liens prosociaux", axe: "SOC" },
-    { id: "S2.1", nom: "S'affirmer / Résister pression", axe: "SOC" },
+    { id: "C1.1", nom: "Accroître sa connaissance de soi", axe: "COG" }, { id: "C1.2", nom: "Savoir penser de façon critique", axe: "COG" },
+    { id: "C1.3", nom: "Connaître ses valeurs et besoins", axe: "COG" }, { id: "C1.4", nom: "Prendre des décisions constructives", axe: "COG" },
+    { id: "C1.5", nom: "S’auto-évaluer positivement", axe: "COG" }, { id: "C1.6", nom: "Renforcer sa pleine attention", axe: "COG" },
+    { id: "C2.1", nom: "Atteindre ses buts personnels", axe: "COG" }, { id: "C2.2", nom: "Gérer ses impulsions", axe: "COG" },
+    { id: "C2.3", nom: "Résoudre des problèmes", axe: "COG" }, { id: "C2.4", nom: "Savoir demander de l'aide", axe: "COG" },
+    { id: "E1.1", nom: "Comprendre les émotions", axe: "EMO" }, { id: "E1.2", nom: "Identifier ses émotions", axe: "EMO" },
+    { id: "E2.2", nom: "Exprimer ses émotions", axe: "EMO" }, { id: "E2.3", nom: "Gérer son stress", axe: "EMO" },
+    { id: "S1.1", nom: "Communiquer de façon efficace", axe: "SOC" }, { id: "S1.2", nom: "Communiquer de façon empathique", axe: "SOC" },
+    { id: "S1.3", nom: "Développer des liens prosociaux", axe: "SOC" }, { id: "S2.1", nom: "S'affirmer / Résister pression", axe: "SOC" },
     { id: "S2.2", nom: "Résoudre les conflits", axe: "SOC" }
 ];
 
@@ -87,8 +78,9 @@ window.ouvrirUnivers = function(code, classe) {
     document.getElementById('univ-nom').innerText = code;
     document.getElementById('univ-classe').innerText = classe;
     
-    const auth = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) ? authData.ELEVES_AUTORISES[code].autorise : false;
-    updateBoutonActionUnivers(auth);
+    // Auth Button
+    const isAuth = (authData.ELEVES_AUTORISES && authData.ELEVES_AUTORISES[code]) ? authData.ELEVES_AUTORISES[code].autorise : false;
+    updateBoutonActionUnivers(isAuth);
     
     const db = firebase.database().ref(`accompagnement/eleves/${code}`);
     db.off();
@@ -108,12 +100,10 @@ window.fermerUnivers = function() {
     currentEleveCode = null;
 };
 
-// --- LOGIQUE OBJECTIFS (AVEC DISTINCTION PROF/ELEVE) ---
+// --- OBJECTIFS ---
 function renderObjectifs(objData) {
-    const list = document.getElementById('univ-objectifs-list');
-    list.innerHTML = '';
+    const list = document.getElementById('univ-objectifs-list'); list.innerHTML = '';
     const keys = objData ? Object.keys(objData) : [];
-    
     if(keys.length === 0) { document.getElementById('no-obj-msg').style.display = 'block'; return; }
     document.getElementById('no-obj-msg').style.display = 'none';
 
@@ -121,17 +111,11 @@ function renderObjectifs(objData) {
         const obj = objData[key];
         const statusClass = obj.done ? 'done' : 'todo';
         const icon = obj.done ? '✅' : '⏳';
+        const badge = obj.auteur === 'ELEVE' ? '<span class="badge bg-info">Elève</span>' : '<span class="badge bg-primary">Prof</span>';
         
-        const isPerso = obj.auteur === 'ELEVE';
-        const badgeAuteur = isPerso 
-            ? '<span class="badge bg-info text-white ms-2">👤 Initiative Élève</span>' 
-            : '<span class="badge bg-primary text-white ms-2">🏫 Contrat Prof</span>';
-
         const div = document.createElement('div');
         div.className = `objective-item ${statusClass}`;
-        if(isPerso) div.style.backgroundColor = "#e0f2fe";
-
-        div.innerHTML = `<div class="d-flex justify-content-between pe-4"><strong>${obj.titre} ${badgeAuteur}</strong><small class="text-muted">${icon}</small></div><div class="small text-muted fst-italic mt-1">${obj.mesure || ''}</div><i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>`;
+        div.innerHTML = `<div class="d-flex justify-content-between pe-4"><strong>${obj.titre} ${badge}</strong><small>${icon}</small></div><div class="small text-muted">${obj.matiere || ''}</div><i class="fas fa-trash delete-obj" onclick="supprimerObjectif('${key}')"></i>`;
         list.appendChild(div);
     });
 }
@@ -139,15 +123,14 @@ function renderObjectifs(objData) {
 window.ajouterObjectif = async function() {
     const titre = prompt("Objectif ?"); if(!titre) return;
     const mesure = prompt("Critère / Détail ?");
-    const newObjRef = firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs`).push();
-    // Quand c'est le prof qui ajoute depuis le Cockpit, auteur = PROF
-    await newObjRef.set({ titre: titre, mesure: mesure, done: false, auteur: "PROF", date: new Date().toISOString() });
+    firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs`).push({ titre: titre, mesure: mesure, done: false, auteur: "PROF", date: new Date().toISOString() });
 }
 
 window.supprimerObjectif = async function(key) {
     if(confirm("Supprimer ?")) { await firebase.database().ref(`accompagnement/eleves/${currentEleveCode}/objectifs/${key}`).remove(); }
 }
 
+// --- CHARTS ---
 function renderUniversCharts(d) {
     const s = { "COG": 0, "EMO": 0, "SOC": 0 }; const c = { "COURS": 0, "ATELIER": 0, "STAGE": 0, "AUTRE": 0 }; let t = 0;
     Object.keys(d.competences_validees||{}).forEach(k => {
@@ -176,17 +159,43 @@ function renderTimeline(d) {
     });
 }
 
-function updateBoutonActionUnivers(auth) {
-    const b = document.getElementById('univ-btn-action');
-    if(auth) { b.innerText="Bloquer"; b.className="btn btn-outline-danger rounded-pill px-4"; b.onclick=()=>setAuth(true); }
-    else { b.innerText="Autoriser"; b.className="btn btn-success rounded-pill px-4"; b.onclick=()=>setAuth(false); }
-}
-async function setAuth(val) {
-    await firebase.database().ref(`accompagnement/autorisations/${currentEleveCode}`).update({autorise: !val});
-    authData.ELEVES_AUTORISES[currentEleveCode] = { autorise: !val };
-    filtrerTableau();
+function updateBoutonActionUnivers(estAutorise) {
+    const btn = document.getElementById('univ-btn-action');
+    // Important : on enlève les écouteurs précédents pour éviter les conflits
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    if(estAutorise) { 
+        newBtn.innerText = "Bloquer l'accès"; 
+        newBtn.className = "btn btn-outline-danger rounded-pill px-4"; 
+        newBtn.onclick = () => basculerAutorisation(currentEleveCode, true); 
+    } else { 
+        newBtn.innerText = "Autoriser l'accès"; 
+        newBtn.className = "btn btn-success rounded-pill px-4"; 
+        newBtn.onclick = () => basculerAutorisation(currentEleveCode, false); 
+    }
 }
 
+async function basculerAutorisation(code, statutActuel) {
+    const nouveauStatut = !statutActuel;
+    
+    // 1. Mise à jour Firebase
+    try {
+        await firebase.database().ref(`accompagnement/autorisations/${code}`).update({ autorise: nouveauStatut });
+        
+        // 2. Mise à jour Locale
+        if (!authData.ELEVES_AUTORISES) authData.ELEVES_AUTORISES = {};
+        if (!authData.ELEVES_AUTORISES[code]) authData.ELEVES_AUTORISES[code] = {};
+        authData.ELEVES_AUTORISES[code].autorise = nouveauStatut;
+        
+        // 3. Rafraîchir l'interface
+        filtrerTableau();
+        if(currentEleveCode === code) updateBoutonActionUnivers(nouveauStatut);
+        
+    } catch (e) { alert("Erreur connexion: " + e); }
+}
+
+// --- EDITEUR ---
 window.ouvrirBibliotheque = async function() {
     const m = new bootstrap.Modal(document.getElementById('modalLibrary'));
     const s = await firebase.database().ref('accompagnement/contenu_pedagogique').once('value');
