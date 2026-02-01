@@ -297,6 +297,7 @@ window.ouvrirBibliotheque = async function() {
 }
 
 function chargerEditeur(ref, safeId) {
+    
     currentEditId = safeId;
     document.getElementById('lib-empty-state').style.display = 'none';
     document.getElementById('lib-editor-area').style.display = 'block';
@@ -308,16 +309,20 @@ function chargerEditeur(ref, safeId) {
     let outilsTxt = "";
     if(Array.isArray(data.boite_a_outils)) outilsTxt = data.boite_a_outils.join('\n'); else outilsTxt = data.boite_a_outils || "";
     document.getElementById('edit-outils').value = outilsTxt;
+    document.getElementById('edit-lien').value = data.lien_externe || "";
 }
 
 window.sauvegarderBibliotheque = async function() {
     if(!currentEditId) return;
+
     const outilsArray = document.getElementById('edit-outils').value.split('\n').filter(line => line.trim() !== "");
+
     const dataToSave = {
         titre_eleve: document.getElementById('edit-titre-eleve').value,
         explication_scientifique: document.getElementById('edit-science').value,
         pourquoi_scolaire: document.getElementById('edit-pourquoi').value,
-        boite_a_outils: outilsArray
+        boite_a_outils: outilsArray,
+        lien_externe: document.getElementById('edit-lien').value // <--- C'est ici !
     };
     libraryData[currentEditId] = dataToSave;
     try {
