@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cockpit — Mon Objectif</title>
+<title>Cockpit – Mon Objectif</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -35,17 +35,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .nav-item:hover{color:#cbd5e1;background:rgba(255,255,255,.05)}
 .nav-item.active{color:#fff;background:rgba(99,102,241,.2);box-shadow:inset 3px 0 0 var(--primary)}
 .nav-item svg{width:20px;height:20px;flex-shrink:0}
+.nav-item .nav-badge{margin-left:auto;background:var(--primary);color:#fff;font-size:.65rem;font-weight:800;padding:2px 8px;border-radius:999px}
 .sidebar-footer{padding:16px 24px;border-top:1px solid rgba(255,255,255,.06);color:#475569;font-size:.7rem}
 .main{margin-left:var(--sidebar-w);flex:1;height:100vh;overflow-y:auto;padding:32px 36px;transition:margin-left .3s var(--ease)}
 .section{display:none;animation:fadeUp .35s var(--ease)}.section.active{display:block}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .page-title{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;margin-bottom:6px}
 .page-sub{color:var(--text2);font-size:.85rem;margin-bottom:28px}
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px}
 .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;position:relative;overflow:hidden;transition:all .2s var(--ease)}
 .kpi-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .kpi-card.kpi-total::before{background:var(--primary)}.kpi-card.kpi-auth::before{background:var(--success)}.kpi-card.kpi-goals::before{background:var(--warning)}.kpi-card.kpi-valid::before{background:var(--cog)}
+.kpi-card.kpi-today::before{background:var(--emo)}
 .kpi-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:8px}
 .kpi-value{font-size:2rem;font-weight:800;letter-spacing:-1px;line-height:1}
 .kpi-detail{font-size:.75rem;color:var(--text2);margin-top:6px}
@@ -53,8 +55,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .search-input{flex:1;min-width:200px;padding:10px 16px;border:1px solid rgba(0,0,0,.08);border-radius:var(--radius-sm);font-family:var(--font);font-size:.85rem;background:var(--surface);outline:none;transition:border .15s}
 .search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
 .filter-select{padding:10px 14px;border:1px solid rgba(0,0,0,.08);border-radius:var(--radius-sm);font-family:var(--font);font-size:.8rem;font-weight:600;background:var(--surface);cursor:pointer;color:var(--text)}
+.filter-date{padding:10px 14px;border:1px solid rgba(0,0,0,.08);border-radius:var(--radius-sm);font-family:var(--font);font-size:.8rem;font-weight:600;background:var(--surface);cursor:pointer;color:var(--text)}
 .btn{padding:10px 20px;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-weight:700;font-size:.8rem;cursor:pointer;transition:all .15s var(--ease);display:inline-flex;align-items:center;gap:8px}
 .btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#4f46e5;box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#059669}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}.btn-ghost:hover{background:var(--surface);border-color:rgba(0,0,0,.12)}
 .btn-sm{padding:7px 14px;font-size:.75rem}
 .students-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
@@ -98,6 +102,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .table-wrap tr:last-child td{border-bottom:none}.table-wrap tr:hover td{background:rgba(99,102,241,.02)}
 .badge{display:inline-flex;padding:3px 10px;border-radius:6px;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
 .badge-cog{background:rgba(59,130,246,.1);color:var(--cog)}.badge-emo{background:rgba(244,63,94,.1);color:var(--emo)}.badge-soc{background:rgba(139,92,246,.1);color:var(--soc)}.badge-other{background:var(--bg);color:var(--text3)}
+.badge-ctx{background:rgba(99,102,241,.08);color:var(--primary);font-size:.6rem;padding:2px 8px}
 .settings-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px 28px;margin-bottom:20px}
 .settings-card h4{font-size:.95rem;font-weight:800;margin-bottom:6px}
 .settings-card p{font-size:.8rem;color:var(--text2);margin-bottom:16px}
@@ -122,14 +127,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .af-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .af-text{flex:1;color:var(--text2)}.af-text strong{color:var(--text);font-weight:700}
 .af-time{color:var(--text3);font-size:.7rem;font-weight:600;white-space:nowrap}
-/* Schedule Grid */
-.schedule-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}.schedule-row:last-child{border-bottom:none}
-.schedule-day{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;min-width:110px;cursor:pointer}
-.schedule-day input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
-.schedule-time{padding:6px 10px;border:1px solid rgba(0,0,0,.08);border-radius:8px;font-family:var(--font);font-size:.8rem;font-weight:600;outline:none}.schedule-time:focus{border-color:var(--primary)}
-.schedule-sep{color:var(--text3);font-size:.8rem;font-weight:600}
-.schedule-status{display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:12px;font-size:.75rem;font-weight:600;color:var(--text2)}
-.schedule-status .dot{width:8px;height:8px;border-radius:50%}
+/* Validation detail row */
+.valid-objectif{font-weight:700;color:var(--text);display:block;margin-bottom:2px}
+.valid-comment{font-size:.75rem;color:var(--text3);font-style:italic;margin-top:4px}
+.valid-validateur{display:flex;align-items:center;gap:6px}
+.valid-validateur-icon{width:24px;height:24px;border-radius:6px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:.75rem}
+/* Code display */
+.code-display{background:linear-gradient(135deg,var(--primary-light),rgba(139,92,246,.1));border-radius:var(--radius-sm);padding:16px 20px;text-align:center;margin-bottom:16px}
+.code-display-label{font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.code-display-value{font-size:1.8rem;font-weight:900;color:var(--primary);letter-spacing:3px;font-family:monospace}
 .hamburger{display:none;position:fixed;top:16px;left:16px;z-index:60;width:44px;height:44px;border-radius:12px;border:none;background:var(--surface);box-shadow:var(--shadow);cursor:pointer;font-size:1.2rem}
 @media(max-width:900px){
   .hamburger{display:flex;align-items:center;justify-content:center}
@@ -145,7 +151,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
-    <div class="brand-icon">&#9670;</div>
+    <div class="brand-icon">◆</div>
     <div><div class="brand-name">CPS Cockpit</div><div class="brand-sub">Accompagnement</div></div>
   </div>
   <nav class="sidebar-nav">
@@ -155,340 +161,748 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     </button>
     <button class="nav-item" data-sec="eleves" onclick="showSection('eleves')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/><circle cx="19" cy="7" r="3"/><path d="M22 21v-1a3 3 0 00-2-2.8"/></svg>
-      &#201;l&#232;ves
+      Élèves
     </button>
     <button class="nav-item" data-sec="validations" onclick="showSection('validations')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
       Validations
+      <span class="nav-badge" id="nav-valid-count">0</span>
     </button>
     <button class="nav-item" data-sec="settings" onclick="showSection('settings')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      R&#233;glages
+      Réglages
     </button>
   </nav>
-  <div class="sidebar-footer">Sant&#233; publique France &middot; CPS v2.0</div>
+  <div class="sidebar-footer">Santé publique France · CPS v2.0</div>
 </aside>
 
 <main class="main" id="main-content">
 
+  <!-- ========== DASHBOARD ========== -->
   <section class="section active" id="sec-dashboard">
     <h1 class="page-title">Tableau de bord</h1>
     <p class="page-sub">Vue d'ensemble du dispositif CPS</p>
     <div class="kpi-row" id="kpi-row">
-      <div class="kpi-card kpi-total"><div class="kpi-label">&#201;l&#232;ves suivis</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-detail">codes enregistr&#233;s</div></div>
-      <div class="kpi-card kpi-auth"><div class="kpi-label">Autoris&#233;s</div><div class="kpi-value" id="kpi-auth">0</div><div class="kpi-detail">acc&#232;s actif au dispositif</div></div>
-      <div class="kpi-card kpi-goals"><div class="kpi-label">Objectifs actifs</div><div class="kpi-value" id="kpi-goals">0</div><div class="kpi-detail">en cours chez les &#233;l&#232;ves</div></div>
-      <div class="kpi-card kpi-valid"><div class="kpi-label">Validations</div><div class="kpi-value" id="kpi-valid">0</div><div class="kpi-detail">comp&#233;tences valid&#233;es</div></div>
+      <div class="kpi-card kpi-total"><div class="kpi-label">Élèves suivis</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-detail">codes enregistrés</div></div>
+      <div class="kpi-card kpi-auth"><div class="kpi-label">Autorisés</div><div class="kpi-value" id="kpi-auth">0</div><div class="kpi-detail">accès actif</div></div>
+      <div class="kpi-card kpi-goals"><div class="kpi-label">Objectifs actifs</div><div class="kpi-value" id="kpi-goals">0</div><div class="kpi-detail">en cours</div></div>
+      <div class="kpi-card kpi-valid"><div class="kpi-label">Validations adultes</div><div class="kpi-value" id="kpi-valid">0</div><div class="kpi-detail">par enseignants/tuteurs</div></div>
+      <div class="kpi-card kpi-today"><div class="kpi-label">Aujourd'hui</div><div class="kpi-value" id="kpi-today">0</div><div class="kpi-detail">validations</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-      <div><div class="drawer-section-title">Activit&#233; r&#233;cente</div><div class="activity-feed" id="activity-feed"><div class="empty-state" style="padding:30px"><div class="es-text">Aucune activit&#233; pour le moment</div></div></div></div>
-      <div><div class="drawer-section-title">R&#233;partition CPS</div><div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;max-width:300px"><canvas id="chart-global-cps"></canvas></div></div>
+      <div>
+        <div class="drawer-section-title">🔔 Activité récente</div>
+        <div class="activity-feed" id="activity-feed">
+          <div class="empty-state" style="padding:30px"><div class="es-text">Aucune activité</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="drawer-section-title">📊 Répartition CPS</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;max-width:300px">
+          <canvas id="chart-global-cps"></canvas>
+        </div>
+      </div>
     </div>
   </section>
 
+  <!-- ========== ÉLÈVES ========== -->
   <section class="section" id="sec-eleves">
-    <h1 class="page-title">&#201;l&#232;ves</h1>
-    <p class="page-sub">Gestion des acc&#232;s et suivi individuel</p>
+    <h1 class="page-title">Élèves</h1>
+    <p class="page-sub">Gestion des accès et suivi individuel</p>
     <div class="toolbar">
-      <input type="text" class="search-input" id="search-input" placeholder="Rechercher un code &#233;l&#232;ve..." oninput="renderStudents()">
+      <input type="text" class="search-input" id="search-input" placeholder="Rechercher un code élève..." oninput="renderStudents()">
       <select class="filter-select" id="filter-class" onchange="renderStudents()"><option value="">Toutes les classes</option></select>
-      <select class="filter-select" id="filter-status" onchange="renderStudents()"><option value="">Tous les statuts</option><option value="on">Autoris&#233;s</option><option value="off">Non autoris&#233;s</option></select>
+      <select class="filter-select" id="filter-status" onchange="renderStudents()"><option value="">Tous</option><option value="on">Autorisés</option><option value="off">Non autorisés</option></select>
       <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter</button>
     </div>
     <div class="students-grid" id="students-grid"></div>
   </section>
 
+  <!-- ========== VALIDATIONS ========== -->
   <section class="section" id="sec-validations">
-    <h1 class="page-title">Validations</h1>
-    <p class="page-sub">Historique des comp&#233;tences valid&#233;es par les adultes</p>
-    <div class="toolbar">
-      <input type="text" class="search-input" id="valid-search" placeholder="Filtrer par code &#233;l&#232;ve..." oninput="renderValidations()">
-      <select class="filter-select" id="valid-filter-type" onchange="renderValidations()"><option value="">Tous les axes</option><option value="COG">Cognitif</option><option value="EMO">&#201;motionnel</option><option value="SOC">Social</option></select>
+    <h1 class="page-title">✅ Validations enseignants</h1>
+    <p class="page-sub">Traçabilité complète des validations par les adultes (enseignants, tuteurs, éducateurs)</p>
+    
+    <!-- KPI Validations -->
+    <div class="kpi-row" style="margin-bottom:24px">
+      <div class="kpi-card kpi-valid">
+        <div class="kpi-label">Total validations</div>
+        <div class="kpi-value" id="valid-kpi-total">0</div>
+      </div>
+      <div class="kpi-card kpi-today">
+        <div class="kpi-label">Aujourd'hui</div>
+        <div class="kpi-value" id="valid-kpi-today">0</div>
+      </div>
+      <div class="kpi-card" style="--top-color:var(--cog)">
+        <div class="kpi-label">Cette semaine</div>
+        <div class="kpi-value" id="valid-kpi-week">0</div>
+      </div>
+      <div class="kpi-card kpi-auth">
+        <div class="kpi-label">Élèves concernés</div>
+        <div class="kpi-value" id="valid-kpi-students">0</div>
+      </div>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Date</th><th>&#201;l&#232;ve</th><th>Axe</th><th>Comp&#233;tence</th><th>Contexte</th><th>Validateur</th></tr></thead><tbody id="valid-tbody"></tbody></table></div>
+    
+    <!-- Filtres -->
+    <div class="toolbar">
+      <input type="text" class="search-input" id="valid-search" placeholder="Filtrer par code élève..." oninput="renderValidations()">
+      <select class="filter-select" id="valid-filter-type" onchange="renderValidations()">
+        <option value="">Tous les axes</option>
+        <option value="COG">🧠 Cognitif</option>
+        <option value="EMO">❤️ Émotionnel</option>
+        <option value="SOC">👥 Social</option>
+      </select>
+      <select class="filter-select" id="valid-filter-ctx" onchange="renderValidations()">
+        <option value="">Tous contextes</option>
+        <option value="Classe">En classe</option>
+        <option value="Stage">Stage</option>
+        <option value="Atelier">Atelier CPS</option>
+        <option value="Entretien">Entretien</option>
+      </select>
+      <select class="filter-select" id="valid-filter-who" onchange="renderValidations()">
+        <option value="">Tous validateurs</option>
+        <option value="Enseignant">Enseignant</option>
+        <option value="Tuteur">Tuteur Pro</option>
+        <option value="Educateur">Éducateur</option>
+      </select>
+      <input type="date" class="filter-date" id="valid-filter-date" onchange="renderValidations()">
+      <button class="btn btn-ghost btn-sm" onclick="clearValidFilters()">Effacer filtres</button>
+      <button class="btn btn-success btn-sm" onclick="exportValidations()">📥 Exporter CSV</button>
+    </div>
+    
+    <!-- Tableau -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date / Heure</th>
+            <th>Élève</th>
+            <th>Objectif validé</th>
+            <th>Axe CPS</th>
+            <th>Contexte</th>
+            <th>Validateur</th>
+          </tr>
+        </thead>
+        <tbody id="valid-tbody"></tbody>
+      </table>
+    </div>
   </section>
 
+  <!-- ========== RÉGLAGES ========== -->
   <section class="section" id="sec-settings">
-    <h1 class="page-title">R&#233;glages</h1>
+    <h1 class="page-title">Réglages</h1>
     <p class="page-sub">Configuration du dispositif</p>
 
+    <!-- Code enseignant -->
     <div class="settings-card">
-      <h4>&#128336; Horaires d'acc&#232;s (global)</h4>
-      <p>Cr&#233;neaux pendant lesquels les &#233;l&#232;ves peuvent acc&#233;der &#224; leur espace. Sans horaire d&#233;fini, l'acc&#232;s est permanent pour les &#233;l&#232;ves autoris&#233;s.</p>
+      <h4>🔐 Code de validation enseignant</h4>
+      <p>Ce code est utilisé par tous les enseignants/tuteurs pour valider les objectifs des élèves. Partagez-le uniquement avec les adultes du dispositif.</p>
+      <div class="code-display">
+        <div class="code-display-label">Code actuel</div>
+        <div class="code-display-value" id="display-code-enseignant">CPS2026</div>
+      </div>
+      <div class="form-group">
+        <label>Modifier le code (7 caractères)</label>
+        <input type="text" id="input-code-enseignant" placeholder="Nouveau code..." maxlength="7" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
+      </div>
+      <button class="btn btn-primary" onclick="saveCodeEnseignant()">Enregistrer le nouveau code</button>
+    </div>
+
+    <!-- Horaires -->
+    <div class="settings-card">
+      <h4>🕐 Horaires d'accès (global)</h4>
+      <p>Créneaux pendant lesquels les élèves peuvent accéder à leur espace.</p>
       <div id="global-schedule-grid"></div>
       <div style="display:flex;gap:10px;margin-top:16px">
-        <button class="btn btn-primary" onclick="saveGlobalSchedule()">Enregistrer les horaires</button>
-        <button class="btn btn-ghost" onclick="clearGlobalSchedule()">Supprimer (acc&#232;s permanent)</button>
+        <button class="btn btn-primary" onclick="saveGlobalSchedule()">Enregistrer</button>
+        <button class="btn btn-ghost" onclick="clearGlobalSchedule()">Supprimer</button>
       </div>
     </div>
 
+    <!-- Import -->
     <div class="settings-card">
-      <h4>Ajout group&#233; d'&#233;l&#232;ves</h4>
-      <p>Collez les codes &#233;l&#232;ves (un par ligne, format : CODE;CLASSE ou juste CODE)</p>
-      <div class="form-group"><textarea id="bulk-codes" placeholder="AB12;2MELEC&#10;CD34;TCAP&#10;EF56"></textarea></div>
+      <h4>📥 Ajout groupé d'élèves</h4>
+      <p>Collez les codes élèves (un par ligne, format : CODE;CLASSE)</p>
+      <div class="form-group"><textarea id="bulk-codes" placeholder="AB12;2MELEC&#10;CD34;TCAP"></textarea></div>
       <button class="btn btn-primary" onclick="bulkImport()">Importer</button>
     </div>
+
+    <!-- Classes -->
     <div class="settings-card">
-      <h4>URL DataLife (optionnel)</h4>
-      <p>URL publique de la base &#233;l&#232;ves globale pour synchronisation automatique</p>
-      <div class="form-group"><input type="url" id="datalife-url" placeholder="https://mapse.fr/data/datalife.json"></div>
-      <button class="btn btn-ghost" onclick="saveDatalifeUrl()">Enregistrer</button>
-      <button class="btn btn-primary btn-sm" style="margin-left:8px" onclick="fetchDatalife()">Tester &amp; Importer</button>
-    </div>
-    <div class="settings-card">
-      <h4>Classes disponibles</h4>
-      <p>Liste des classes (s&#233;par&#233;es par des virgules). Utilis&#233;e pour le filtrage.</p>
-      <div class="form-group"><input type="text" id="classes-input" placeholder="2MELEC, TCAP, 2PSR, 2CAN..."></div>
+      <h4>🏫 Classes disponibles</h4>
+      <p>Liste des classes (séparées par des virgules)</p>
+      <div class="form-group"><input type="text" id="classes-input" placeholder="2MELEC, TCAP, 2PSR..."></div>
       <button class="btn btn-ghost" onclick="saveClasses()">Enregistrer</button>
     </div>
   </section>
 </main>
 
+<!-- DRAWER ÉLÈVE -->
 <div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
-  <div class="drawer-header"><div class="drawer-title" id="drawer-code">&mdash;</div><button class="drawer-close" onclick="closeDrawer()">&#10005;</button></div>
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawer-code">—</div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
   <div class="drawer-body">
-    <div class="auth-row">
-      <div><div style="font-weight:700;font-size:.85rem" id="drawer-auth-label">Acc&#232;s autoris&#233;</div><div style="font-size:.7rem;color:var(--text3)" id="drawer-classe-label">&mdash;</div></div>
-      <button class="toggle-btn on" id="drawer-toggle" onclick="toggleDrawerAuth()"></button>
-    </div>
-
     <div class="drawer-section">
-      <div class="drawer-section-title">&#128336; Horaires d'acc&#232;s</div>
-      <div class="schedule-status" id="drawer-schedule-status"><span class="dot" style="background:var(--success)"></span><span>Horaires globaux appliqu&#233;s</span></div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;margin-bottom:12px;cursor:pointer">
-        <input type="checkbox" id="drawer-custom-schedule" onchange="toggleCustomSchedule()" style="width:16px;height:16px;accent-color:var(--primary)">
-        Horaires individuels (remplace le global)
-      </label>
-      <div id="drawer-schedule-grid" style="display:none"></div>
-      <div id="drawer-schedule-actions" style="display:none;margin-top:10px;display:flex;gap:8px">
-        <button class="btn btn-sm btn-primary" id="btn-save-student-schedule" style="display:none" onclick="saveStudentSchedule()">Enregistrer</button>
-        <button class="btn btn-sm btn-ghost" id="btn-clear-student-schedule" style="display:none" onclick="clearStudentSchedule()">Supprimer</button>
+      <div class="drawer-section-title" id="drawer-classe-label">Classe</div>
+      <div class="auth-row">
+        <span id="drawer-auth-label" style="font-weight:700">—</span>
+        <button class="toggle-btn off" id="drawer-toggle" onclick="toggleDrawerAuth()"></button>
       </div>
     </div>
-
-    <div class="drawer-section"><div class="drawer-section-title">Profil CPS</div><div class="stat-pills" id="drawer-pills"></div><div class="radar-container"><canvas id="drawer-radar"></canvas></div></div>
-    <div class="drawer-section"><div class="drawer-section-title">Objectifs en cours</div><div id="drawer-goals"></div></div>
-    <div class="drawer-section"><div class="drawer-section-title">M&#233;t&#233;o &#233;motionnelle (7 derniers jours)</div><div class="mood-row" id="drawer-mood"></div></div>
-    <div class="drawer-section"><div class="drawer-section-title">Derni&#232;res validations</div><div id="drawer-validations"></div></div>
-    <div class="drawer-section" style="padding-top:12px;border-top:1px solid var(--border)"><a class="link-ext" id="drawer-link" href="#" target="_blank">Ouvrir l'espace &#233;l&#232;ve &#8599;</a></div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Compétences validées</div>
+      <div class="stat-pills" id="drawer-pills"></div>
+      <div class="radar-container"><canvas id="drawer-radar"></canvas></div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Objectifs en cours</div>
+      <div id="drawer-goals"></div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Validations adultes</div>
+      <div id="drawer-validations"></div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Météo récente</div>
+      <div class="mood-row" id="drawer-mood"></div>
+    </div>
+    <div class="drawer-section">
+      <a class="link-ext" id="drawer-link" href="#" target="_blank">🔗 Ouvrir l'espace élève</a>
+    </div>
   </div>
 </div>
 
+<!-- MODAL AJOUT -->
 <div class="modal-backdrop" id="add-modal">
   <div class="modal">
-    <h3>Ajouter un &#233;l&#232;ve</h3>
-    <div class="form-group"><label>Code &#233;l&#232;ve</label><input type="text" id="add-code" placeholder="Ex: AB12" style="text-transform:uppercase"></div>
+    <h3>Ajouter un élève</h3>
+    <div class="form-group"><label>Code élève</label><input type="text" id="add-code" placeholder="Ex: AB12" style="text-transform:uppercase"></div>
     <div class="form-group"><label>Classe (optionnel)</label><input type="text" id="add-classe" placeholder="Ex: 2MELEC"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px"><button class="btn btn-ghost" onclick="closeAddModal()">Annuler</button><button class="btn btn-primary" onclick="addStudent()">Ajouter</button></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeAddModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="addStudent()">Ajouter</button>
+    </div>
   </div>
 </div>
 
 <div class="toast-container" id="toast-container"></div>
 
-<script src="js/data_eleves.js"></script>
 <script>
-const firebaseConfig={apiKey:"AIzaSyAWdCMvOiAJln3eT9LIAQD3RWJUD0IQcLI",authDomain:"devoirs-pse.firebaseapp.com",databaseURL:"https://devoirs-pse-default-rtdb.europe-west1.firebasedatabase.app",projectId:"devoirs-pse",storageBucket:"devoirs-pse.appspot.com",messagingSenderId:"614730413904",appId:"1:614730413904:web:a5dd478af5de30f6bede55"};
+// Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyAWdCMvOiAJln3eT9LIAQD3RWJUD0IQcLI",
+  authDomain: "devoirs-pse.firebaseapp.com",
+  databaseURL: "https://devoirs-pse-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "devoirs-pse",
+  storageBucket: "devoirs-pse.appspot.com",
+  messagingSenderId: "614730413904",
+  appId: "1:614730413904:web:a5dd478af5de30f6bede55"
+};
 firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
+const db = firebase.database();
 
-let autorisations={},elevesData={},validationsList=[],allStudents=[],selectedCode=null,drawerChart=null,globalChart=null,globalSchedule={};
-const CLASSES_KEY='cockpit_cps_classes',DATALIFE_KEY='cockpit_cps_datalife_url';
-const REF_AUTH='accompagnement/autorisations',REF_ELEVES='accompagnement/eleves',REF_VALID='accompagnement/validations',REF_SCHEDULE='accompagnement/config/horaires_global';
-const JOURS=['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
-const JOURS_LABELS={lundi:'Lundi',mardi:'Mardi',mercredi:'Mercredi',jeudi:'Jeudi',vendredi:'Vendredi',samedi:'Samedi',dimanche:'Dimanche'};
+// Refs
+const REF_AUTH = 'accompagnement/autorisations';
+const REF_ELEVES = 'accompagnement/eleves';
+const REF_VALIDATIONS = 'accompagnement/validations';
+const REF_CONFIG = 'accompagnement/config';
+const CLASSES_KEY = 'cps_classes';
 
-(function loadSettings(){
-  var u=localStorage.getItem(DATALIFE_KEY);if(u)document.getElementById('datalife-url').value=u;
-  var c=localStorage.getItem(CLASSES_KEY);if(c)document.getElementById('classes-input').value=c;
-})();
+// State
+let autorisations = {};
+let elevesData = {};
+let validationsList = [];
+let allStudents = [];
+let selectedCode = null;
+let globalChart = null;
+let drawerChart = null;
+let codeEnseignant = 'CPS2026';
 
-function showSection(id){document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active')});document.getElementById('sec-'+id).classList.add('active');document.querySelectorAll('.nav-item').forEach(function(n){n.classList.toggle('active',n.dataset.sec===id)});document.getElementById('sidebar').classList.remove('open')}
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open')}
-
-// DATA SUBSCRIPTIONS
-db.ref(REF_AUTH).on('value',function(snap){autorisations=snap.val()||{};mergeAndRender()});
-db.ref(REF_ELEVES).on('value',function(snap){elevesData=snap.val()||{};mergeAndRender()});
-db.ref(REF_VALID).limitToLast(200).on('value',function(snap){var obj=snap.val()||{};validationsList=Object.entries(obj).map(function(e){return Object.assign({id:e[0]},e[1])}).sort(function(a,b){return(b.timestamp||b.created_at||0)-(a.timestamp||a.created_at||0)});renderValidations();renderActivity()});
-db.ref(REF_SCHEDULE).on('value',function(snap){globalSchedule=snap.val()||{};renderScheduleGrid('global-schedule-grid',globalSchedule)});
-
-// SCHEDULE MANAGEMENT
-function renderScheduleGrid(containerId,schedule){
-  var c=document.getElementById(containerId);if(!c)return;schedule=schedule||{};
-  c.innerHTML=JOURS.map(function(j){var s=schedule[j]||{debut:'08:00',fin:'17:00',actif:false};
-    return '<div class="schedule-row"><label class="schedule-day"><input type="checkbox" data-jour="'+j+'"'+(s.actif?' checked':'')+' class="sch-check">'+JOURS_LABELS[j]+'</label>'
-    +'<input type="time" class="schedule-time sch-time" data-jour="'+j+'" data-type="debut" value="'+(s.debut||'08:00')+'">'
-    +'<span class="schedule-sep">&rarr;</span>'
-    +'<input type="time" class="schedule-time sch-time" data-jour="'+j+'" data-type="fin" value="'+(s.fin||'17:00')+'"></div>'}).join('');
-}
-function readScheduleGrid(containerId){
-  var c=document.getElementById(containerId),schedule={};
-  JOURS.forEach(function(j){var ch=c.querySelector('[data-jour="'+j+'"].sch-check');var d=c.querySelector('[data-jour="'+j+'"][data-type="debut"]');var f=c.querySelector('[data-jour="'+j+'"][data-type="fin"]');
-    schedule[j]={actif:ch?ch.checked:false,debut:d?d.value:'08:00',fin:f?f.value:'17:00'}});
-  return schedule;
-}
-function saveGlobalSchedule(){db.ref(REF_SCHEDULE).set(readScheduleGrid('global-schedule-grid'));toast('Horaires globaux enregistr\u00e9s')}
-function clearGlobalSchedule(){if(!confirm("Supprimer tous les horaires globaux ?\nL'acc\u00e8s sera permanent pour les \u00e9l\u00e8ves autoris\u00e9s."))return;db.ref(REF_SCHEDULE).remove();toast('Horaires supprim\u00e9s \u2014 acc\u00e8s permanent')}
-function toggleCustomSchedule(){
-  var checked=document.getElementById('drawer-custom-schedule').checked;
-  document.getElementById('drawer-schedule-grid').style.display=checked?'block':'none';
-  document.getElementById('btn-save-student-schedule').style.display=checked?'inline-flex':'none';
-  document.getElementById('btn-clear-student-schedule').style.display=checked?'inline-flex':'none';
-  if(checked&&selectedCode){var auth=autorisations[selectedCode]||{};renderScheduleGrid('drawer-schedule-grid',auth.horaires||globalSchedule||{})}
-}
-function saveStudentSchedule(){if(!selectedCode)return;db.ref(REF_AUTH+'/'+selectedCode+'/horaires').set(readScheduleGrid('drawer-schedule-grid'));toast('Horaires individuels enregistr\u00e9s pour '+selectedCode)}
-function clearStudentSchedule(){if(!selectedCode)return;db.ref(REF_AUTH+'/'+selectedCode+'/horaires').remove();document.getElementById('drawer-custom-schedule').checked=false;toggleCustomSchedule();toast('Horaires individuels supprim\u00e9s pour '+selectedCode)}
-
-// MERGE & RENDER
-function mergeAndRender(){
-  var codes=new Set([].concat(Object.keys(autorisations),Object.keys(elevesData)));
-  allStudents=Array.from(codes).sort().map(function(code){
-    var auth=autorisations[code]||{},data=elevesData[code]||{};
-    var objectives=data.objectifs?Object.values(data.objectifs):[];
-    return{code:code,autorise:!!(auth.autorise),classe:auth.classe||'',parcours:auth.parcours||'',referent:auth.referent||'',activeGoals:objectives.filter(function(o){return!o.done}).length,doneGoals:objectives.filter(function(o){return o.done}).length,data:data,objectives:objectives,meteo:data.meteo||{},competences:data.competences_validees||{},hasCustomSchedule:!!(auth.horaires)};
-  });
-  renderKPIs();renderStudents();renderClassFilter();renderGlobalCPS();
-  if(selectedCode)renderDrawerContent(selectedCode);
-}
-
-function renderKPIs(){
-  animateKPI('kpi-total',allStudents.length);
-  animateKPI('kpi-auth',allStudents.filter(function(s){return s.autorise}).length);
-  animateKPI('kpi-goals',allStudents.reduce(function(s,st){return s+st.activeGoals},0));
-  animateKPI('kpi-valid',validationsList.length);
-}
-function animateKPI(id,target){var el=document.getElementById(id);var current=parseInt(el.textContent)||0;if(current===target){el.textContent=target;return}var step=target>current?1:-1;var dur=Math.min(400,Math.abs(target-current)*30);var steps=Math.abs(target-current);var i=0;var iv=setInterval(function(){i++;el.textContent=current+step*i;if(i>=steps)clearInterval(iv)},dur/steps)}
-
-function renderStudents(){
-  var q=(document.getElementById('search-input').value||'').toUpperCase();
-  var fc=document.getElementById('filter-class').value||'';
-  var fs=document.getElementById('filter-status').value||'';
-  var filtered=allStudents.filter(function(s){if(q&&s.code.indexOf(q)===-1)return false;if(fc&&s.classe!==fc)return false;if(fs==='on'&&!s.autorise)return false;if(fs==='off'&&s.autorise)return false;return true});
-  var grid=document.getElementById('students-grid');
-  if(!filtered.length){grid.innerHTML='<div class="empty-state"><div class="es-icon">&#128101;</div><div class="es-title">Aucun \u00e9l\u00e8ve trouv\u00e9</div><div class="es-text">Ajoutez des \u00e9l\u00e8ves via le bouton "+" ou importez-les depuis les r\u00e9glages.</div></div>';return}
-  grid.innerHTML=filtered.map(function(s,i){var schedIcon=s.hasCustomSchedule?' \u{1F550}':'';
-    return '<div class="student-card" onclick="openDrawer(\''+s.code+'\')" style="animation-delay:'+i*30+'ms"><div class="sc-top"><span class="sc-code">'+s.code+schedIcon+'</span>'+(s.classe?'<span class="sc-classe">'+s.classe+'</span>':'')+'</div><div class="sc-stats"><span>\u{1F4CB} '+s.activeGoals+' objectif'+(s.activeGoals>1?'s':'')+'</span><span>\u2705 '+s.doneGoals+' valid\u00e9'+(s.doneGoals>1?'s':'')+'</span></div><div class="sc-bottom"><span class="status-label '+(s.autorise?'on':'off')+'"><span class="status-dot '+(s.autorise?'on':'off')+'"></span>'+(s.autorise?'Autoris\u00e9':'Non autoris\u00e9')+'</span><button class="toggle-btn '+(s.autorise?'on':'off')+'" onclick="event.stopPropagation();toggleAuth(\''+s.code+'\')"></button></div></div>'}).join('');
-}
-function renderClassFilter(){var sel=document.getElementById('filter-class');var current=sel.value;var classes=Array.from(new Set(allStudents.map(function(s){return s.classe}).filter(Boolean))).sort();var saved=(localStorage.getItem(CLASSES_KEY)||'').split(',').map(function(c){return c.trim()}).filter(Boolean);var bddClasses=(window.BDD_ELEVES||[]).map(function(e){return e.classe}).filter(Boolean);var all=Array.from(new Set([].concat(classes,saved,bddClasses))).sort();sel.innerHTML='<option value="">Toutes les classes</option>'+all.map(function(c){return '<option value="'+c+'"'+(c===current?' selected':'')+'>'+c+'</option>'}).join('')}
-
-function toggleAuth(code){var current=autorisations[code]&&autorisations[code].autorise||false;db.ref(REF_AUTH+'/'+code).update({autorise:!current,updated_at:Date.now()});toast(code+' '+(!current?'autoris\u00e9':'acc\u00e8s retir\u00e9'))}
-
-function openDrawer(code){selectedCode=code;document.getElementById('drawer').classList.add('open');document.getElementById('drawer-backdrop').classList.add('open');renderDrawerContent(code)}
-function closeDrawer(){selectedCode=null;document.getElementById('drawer').classList.remove('open');document.getElementById('drawer-backdrop').classList.remove('open')}
-
-function renderDrawerContent(code){
-  var s=allStudents.find(function(x){return x.code===code});if(!s)return;
-  document.getElementById('drawer-code').textContent=s.code+(s.classe?' \u00b7 '+s.classe:'');
-  document.getElementById('drawer-classe-label').textContent=s.parcours?'Parcours : '+s.parcours:(s.classe||'Classe non renseign\u00e9e');
-  var toggle=document.getElementById('drawer-toggle'),label=document.getElementById('drawer-auth-label');
-  toggle.className='toggle-btn '+(s.autorise?'on':'off');
-  label.textContent=s.autorise?'Acc\u00e8s autoris\u00e9':'Acc\u00e8s non autoris\u00e9';
-  label.style.color=s.autorise?'var(--success)':'var(--text3)';
-
-  // Schedule status
-  var statusEl=document.getElementById('drawer-schedule-status');
-  var customCheck=document.getElementById('drawer-custom-schedule');
-  var auth=autorisations[code]||{};
-  if(auth.horaires){
-    statusEl.innerHTML='<span class="dot" style="background:var(--primary)"></span><span>Horaires individuels actifs</span>';
-    customCheck.checked=true;
-    document.getElementById('drawer-schedule-grid').style.display='block';
-    document.getElementById('btn-save-student-schedule').style.display='inline-flex';
-    document.getElementById('btn-clear-student-schedule').style.display='inline-flex';
-    renderScheduleGrid('drawer-schedule-grid',auth.horaires);
-  }else{
-    var hasGlobal=globalSchedule&&Object.keys(globalSchedule).length>0;
-    statusEl.innerHTML='<span class="dot" style="background:'+(hasGlobal?'var(--success)':'var(--text3)')+'"></span><span>'+(hasGlobal?'Horaires globaux appliqu\u00e9s':'Aucun horaire (acc\u00e8s permanent)')+'</span>';
-    customCheck.checked=false;
-    document.getElementById('drawer-schedule-grid').style.display='none';
-    document.getElementById('btn-save-student-schedule').style.display='none';
-    document.getElementById('btn-clear-student-schedule').style.display='none';
+// Init
+db.ref(REF_AUTH).on('value', snap => { autorisations = snap.val() || {}; refresh(); });
+db.ref(REF_ELEVES).on('value', snap => { elevesData = snap.val() || {}; refresh(); });
+db.ref(REF_VALIDATIONS).orderByChild('timestamp').limitToLast(200).on('value', snap => {
+  const raw = snap.val() || {};
+  validationsList = Object.entries(raw).map(([k, v]) => ({ id: k, ...v })).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  refresh();
+  document.getElementById('nav-valid-count').textContent = validationsList.length;
+});
+db.ref(REF_CONFIG + '/code_validation').on('value', snap => {
+  if (snap.exists()) {
+    codeEnseignant = snap.val();
+    document.getElementById('display-code-enseignant').textContent = codeEnseignant;
   }
+});
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+function showSection(sec) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + sec).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('[data-sec="' + sec + '"]').classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+  if (sec === 'validations') renderValidations();
+}
+
+function refresh() {
+  // Build students list
+  const codes = new Set([...Object.keys(autorisations), ...Object.keys(elevesData)]);
+  allStudents = Array.from(codes).map(code => {
+    const auth = autorisations[code] || {};
+    const data = elevesData[code] || {};
+    const objectives = Object.values(data.objectifs || {});
+    return {
+      code,
+      classe: auth.classe || '',
+      parcours: auth.parcours || '',
+      autorise: auth.autorise || false,
+      objectives,
+      activeGoals: objectives.filter(o => !o.done).length,
+      doneGoals: objectives.filter(o => o.done).length,
+      meteo: data.meteo || {}
+    };
+  }).sort((a, b) => a.code.localeCompare(b.code));
+
+  renderKPIs();
+  renderStudents();
+  renderClassFilter();
+  renderGlobalCPS();
+  renderActivity();
+  if (selectedCode) renderDrawerContent(selectedCode);
+}
+
+function renderKPIs() {
+  const today = new Date().toISOString().split('T')[0];
+  const todayValidations = validationsList.filter(v => {
+    if (!v.timestamp) return false;
+    return new Date(v.timestamp).toISOString().split('T')[0] === today;
+  }).length;
+
+  animateKPI('kpi-total', allStudents.length);
+  animateKPI('kpi-auth', allStudents.filter(s => s.autorise).length);
+  animateKPI('kpi-goals', allStudents.reduce((s, st) => s + st.activeGoals, 0));
+  animateKPI('kpi-valid', validationsList.length);
+  animateKPI('kpi-today', todayValidations);
+}
+
+function animateKPI(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = target;
+}
+
+function renderStudents() {
+  const q = (document.getElementById('search-input').value || '').toUpperCase();
+  const fc = document.getElementById('filter-class').value || '';
+  const fs = document.getElementById('filter-status').value || '';
+  
+  const filtered = allStudents.filter(s => {
+    if (q && s.code.indexOf(q) === -1) return false;
+    if (fc && s.classe !== fc) return false;
+    if (fs === 'on' && !s.autorise) return false;
+    if (fs === 'off' && s.autorise) return false;
+    return true;
+  });
+
+  const grid = document.getElementById('students-grid');
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="es-icon">👥</div><div class="es-title">Aucun élève trouvé</div></div>';
+    return;
+  }
+  
+  grid.innerHTML = filtered.map(s => {
+    const validCount = validationsList.filter(v => (v.eleve_id || '').toUpperCase() === s.code).length;
+    return `<div class="student-card" onclick="openDrawer('${s.code}')">
+      <div class="sc-top">
+        <span class="sc-code">${s.code}</span>
+        ${s.classe ? `<span class="sc-classe">${s.classe}</span>` : ''}
+      </div>
+      <div class="sc-stats">
+        <span>📋 ${s.activeGoals} objectif${s.activeGoals > 1 ? 's' : ''}</span>
+        <span>✅ ${validCount} validation${validCount > 1 ? 's' : ''}</span>
+      </div>
+      <div class="sc-bottom">
+        <span class="status-label ${s.autorise ? 'on' : 'off'}">
+          <span class="status-dot ${s.autorise ? 'on' : 'off'}"></span>
+          ${s.autorise ? 'Autorisé' : 'Non autorisé'}
+        </span>
+        <button class="toggle-btn ${s.autorise ? 'on' : 'off'}" onclick="event.stopPropagation();toggleAuth('${s.code}')"></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderClassFilter() {
+  const sel = document.getElementById('filter-class');
+  const current = sel.value;
+  const classes = Array.from(new Set(allStudents.map(s => s.classe).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="">Toutes les classes</option>' + classes.map(c => `<option value="${c}"${c === current ? ' selected' : ''}>${c}</option>`).join('');
+}
+
+function toggleAuth(code) {
+  const current = autorisations[code]?.autorise || false;
+  db.ref(REF_AUTH + '/' + code).update({ autorise: !current, updated_at: Date.now() });
+  toast(code + ' ' + (!current ? 'autorisé' : 'accès retiré'));
+}
+
+function openDrawer(code) {
+  selectedCode = code;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-backdrop').classList.add('open');
+  renderDrawerContent(code);
+}
+
+function closeDrawer() {
+  selectedCode = null;
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-backdrop').classList.remove('open');
+}
+
+function renderDrawerContent(code) {
+  const s = allStudents.find(x => x.code === code);
+  if (!s) return;
+
+  document.getElementById('drawer-code').textContent = s.code + (s.classe ? ' · ' + s.classe : '');
+  document.getElementById('drawer-classe-label').textContent = s.parcours ? 'Parcours : ' + s.parcours : (s.classe || 'Classe non renseignée');
+  
+  const toggle = document.getElementById('drawer-toggle');
+  const label = document.getElementById('drawer-auth-label');
+  toggle.className = 'toggle-btn ' + (s.autorise ? 'on' : 'off');
+  label.textContent = s.autorise ? 'Accès autorisé' : 'Accès non autorisé';
+  label.style.color = s.autorise ? 'var(--success)' : 'var(--text3)';
 
   // CPS counts
-  var counts={COG:0,EMO:0,SOC:0};
-  s.objectives.forEach(function(o){var t=(o.type||o.domaine||'').toUpperCase();var ax=t.indexOf('COG')>=0?'COG':t.indexOf('EMO')>=0?'EMO':t.indexOf('SOC')>=0?'SOC':null;if(ax&&o.done)counts[ax]++});
-  var studentValidations=validationsList.filter(function(v){return(v.eleve_id||v.eleve||'').toUpperCase()===code});
-  studentValidations.forEach(function(v){var ax=(v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();if(ax.indexOf('COG')>=0)counts.COG++;else if(ax.indexOf('EMO')>=0)counts.EMO++;else if(ax.indexOf('SOC')>=0)counts.SOC++});
-  document.getElementById('drawer-pills').innerHTML='<span class="stat-pill cog">Cognitif '+counts.COG+'</span><span class="stat-pill emo">\u00c9motionnel '+counts.EMO+'</span><span class="stat-pill soc">Social '+counts.SOC+'</span>';
+  const counts = { COG: 0, EMO: 0, SOC: 0 };
+  const studentValidations = validationsList.filter(v => (v.eleve_id || '').toUpperCase() === code);
+  studentValidations.forEach(v => {
+    const ax = (v.axe || '').toUpperCase();
+    if (ax.indexOf('COG') >= 0) counts.COG++;
+    else if (ax.indexOf('EMO') >= 0) counts.EMO++;
+    else if (ax.indexOf('SOC') >= 0) counts.SOC++;
+  });
+  s.objectives.filter(o => o.done).forEach(o => {
+    const t = (o.type || o.domaine || '').toUpperCase();
+    if (t.indexOf('COG') >= 0) counts.COG++;
+    else if (t.indexOf('EMO') >= 0) counts.EMO++;
+    else if (t.indexOf('SOC') >= 0) counts.SOC++;
+  });
 
-  var ctx=document.getElementById('drawer-radar');
-  if(drawerChart)drawerChart.destroy();
-  drawerChart=new Chart(ctx,{type:'radar',data:{labels:['Cognitif','\u00c9motionnel','Social'],datasets:[{data:[counts.COG,counts.EMO,counts.SOC],backgroundColor:'rgba(99,102,241,.15)',borderColor:'rgba(99,102,241,.6)',borderWidth:2,pointBackgroundColor:'#6366f1',pointRadius:5,pointHoverRadius:7}]},options:{scales:{r:{beginAtZero:true,ticks:{display:false},grid:{color:'rgba(0,0,0,.05)'},pointLabels:{font:{size:12,weight:'700',family:'Plus Jakarta Sans'}}}},plugins:{legend:{display:false}},animation:{duration:500}}});
+  document.getElementById('drawer-pills').innerHTML = `
+    <span class="stat-pill cog">🧠 Cognitif ${counts.COG}</span>
+    <span class="stat-pill emo">❤️ Émotionnel ${counts.EMO}</span>
+    <span class="stat-pill soc">👥 Social ${counts.SOC}</span>
+  `;
 
-  var goalsDiv=document.getElementById('drawer-goals');
-  var active=s.objectives.filter(function(o){return!o.done});
-  if(active.length){goalsDiv.innerHTML=active.slice(0,5).map(function(o){var t=(o.type||o.domaine||'').toUpperCase();var cls=t.indexOf('COG')>=0?'cog':t.indexOf('EMO')>=0?'emo':t.indexOf('SOC')>=0?'soc':'other';return '<div class="mini-card"><span class="mc-label">'+(o.titre||'Sans titre')+'</span><span class="badge badge-'+cls+'">'+cls.toUpperCase()+'</span></div>'}).join('');if(active.length>5)goalsDiv.innerHTML+='<div style="font-size:.7rem;color:var(--text3);text-align:center;padding:6px">+ '+(active.length-5)+' autre(s)</div>'}
-  else{goalsDiv.innerHTML='<div style="font-size:.8rem;color:var(--text3);font-style:italic">Aucun objectif en cours</div>'}
+  // Radar
+  const ctx = document.getElementById('drawer-radar');
+  if (drawerChart) drawerChart.destroy();
+  drawerChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Cognitif', 'Émotionnel', 'Social'],
+      datasets: [{
+        data: [counts.COG, counts.EMO, counts.SOC],
+        backgroundColor: 'rgba(99,102,241,.15)',
+        borderColor: 'rgba(99,102,241,.6)',
+        borderWidth: 2,
+        pointBackgroundColor: '#6366f1',
+        pointRadius: 5
+      }]
+    },
+    options: {
+      scales: { r: { beginAtZero: true, ticks: { display: false }, grid: { color: 'rgba(0,0,0,.05)' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
 
-  var moodDiv=document.getElementById('drawer-mood');
-  var meteoEntries=Object.entries(s.meteo).sort(function(a,b){return b[0].localeCompare(a[0])}).slice(0,7);
-  if(meteoEntries.length){moodDiv.innerHTML=meteoEntries.map(function(e){return '<span class="mood-chip" title="'+e[0]+'">'+(e[1].secondary||e[1].primary||'?')+'</span>'}).join('')}
-  else{moodDiv.innerHTML='<span style="font-size:.8rem;color:var(--text3);font-style:italic">Aucune donn\u00e9e</span>'}
+  // Goals
+  const goalsDiv = document.getElementById('drawer-goals');
+  const active = s.objectives.filter(o => !o.done);
+  if (active.length) {
+    goalsDiv.innerHTML = active.slice(0, 5).map(o => `<div class="mini-card"><span class="mc-label">${o.titre || '—'}</span><span class="mc-value">${o.context || ''}</span></div>`).join('');
+  } else {
+    goalsDiv.innerHTML = '<span style="font-size:.8rem;color:var(--text3);font-style:italic">Aucun objectif en cours</span>';
+  }
 
-  var vDiv=document.getElementById('drawer-validations');
-  if(studentValidations.length){vDiv.innerHTML=studentValidations.slice(0,5).map(function(v){var ax=(v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();var cls=ax.indexOf('COG')>=0?'cog':ax.indexOf('EMO')>=0?'emo':ax.indexOf('SOC')>=0?'soc':'other';var date=v.date_lisible||(v.timestamp?new Date(v.timestamp).toLocaleDateString('fr-FR'):'');return '<div class="mini-card"><span class="mc-label">'+(v.competence_id||v.competence||ax)+'</span><div><span class="badge badge-'+cls+'">'+cls.toUpperCase()+'</span> <span class="mc-value">'+date+'</span></div></div>'}).join('')}
-  else{vDiv.innerHTML='<span style="font-size:.8rem;color:var(--text3);font-style:italic">Aucune validation</span>'}
+  // Validations
+  const vDiv = document.getElementById('drawer-validations');
+  if (studentValidations.length) {
+    vDiv.innerHTML = studentValidations.slice(0, 5).map(v => {
+      const ax = (v.axe || '').toUpperCase();
+      const cls = ax.indexOf('COG') >= 0 ? 'cog' : ax.indexOf('EMO') >= 0 ? 'emo' : ax.indexOf('SOC') >= 0 ? 'soc' : 'other';
+      const date = v.date_lisible || (v.timestamp ? new Date(v.timestamp).toLocaleDateString('fr-FR') : '');
+      return `<div class="mini-card">
+        <div>
+          <span class="mc-label">${v.objectif_titre || v.competence_id || '—'}</span>
+          <div style="font-size:.7rem;color:var(--text3)">${v.validateur || ''} · ${date}</div>
+        </div>
+        <span class="badge badge-${cls}">${ax || '—'}</span>
+      </div>`;
+    }).join('');
+  } else {
+    vDiv.innerHTML = '<span style="font-size:.8rem;color:var(--text3);font-style:italic">Aucune validation</span>';
+  }
 
-  var baseUrl=window.location.hostname.indexOf('github.io')>=0?window.location.origin+'/accompagnement/':'../accompagnement/';
-  document.getElementById('drawer-link').href=baseUrl+'?id='+code;
+  // Mood
+  const moodDiv = document.getElementById('drawer-mood');
+  const meteoEntries = Object.entries(s.meteo).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
+  if (meteoEntries.length) {
+    moodDiv.innerHTML = meteoEntries.map(e => `<span class="mood-chip" title="${e[0]}">${e[1].secondary || e[1].primary || '?'}</span>`).join('');
+  } else {
+    moodDiv.innerHTML = '<span style="font-size:.8rem;color:var(--text3);font-style:italic">Aucune donnée</span>';
+  }
+
+  // Link
+  const baseUrl = window.location.hostname.indexOf('github.io') >= 0 ? window.location.origin + '/accompagnement/' : '../accompagnement/';
+  document.getElementById('drawer-link').href = baseUrl + '?id=' + code;
 }
-function toggleDrawerAuth(){if(!selectedCode)return;toggleAuth(selectedCode)}
 
-function renderValidations(){
-  var q=(document.getElementById('valid-search').value||'').toUpperCase();
-  var ft=document.getElementById('valid-filter-type').value||'';
-  var filtered=validationsList.filter(function(v){var elId=(v.eleve_id||v.eleve||'').toUpperCase();if(q&&elId.indexOf(q)===-1)return false;if(ft){var ax=(v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();if(ax.indexOf(ft)===-1)return false}return true});
-  var tbody=document.getElementById('valid-tbody');
-  if(!filtered.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">Aucune validation</td></tr>';return}
-  tbody.innerHTML=filtered.slice(0,50).map(function(v){var ax=(v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();var cls=ax.indexOf('COG')>=0?'cog':ax.indexOf('EMO')>=0?'emo':ax.indexOf('SOC')>=0?'soc':'other';var date=v.date_lisible||(v.timestamp?new Date(v.timestamp).toLocaleDateString('fr-FR'):'\u2014');var elId=(v.eleve_id||v.eleve||'').toUpperCase();return '<tr><td>'+date+'</td><td><strong>'+elId+'</strong></td><td><span class="badge badge-'+cls+'">'+(ax||'\u2014')+'</span></td><td>'+(v.competence_id||v.indicateur||'\u2014')+'</td><td>'+(v.contexte||v.cadre||'\u2014')+'</td><td>'+(v.validateur||'\u2014')+'</td></tr>'}).join('');
+function toggleDrawerAuth() {
+  if (!selectedCode) return;
+  toggleAuth(selectedCode);
 }
 
-function renderActivity(){
-  var feed=document.getElementById('activity-feed');
-  if(!validationsList.length){feed.innerHTML='<div style="font-size:.8rem;color:var(--text3);padding:20px;text-align:center">Aucune activit\u00e9 r\u00e9cente</div>';return}
-  feed.innerHTML=validationsList.slice(0,8).map(function(v){var ax=(v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();var color=ax.indexOf('COG')>=0?'var(--cog)':ax.indexOf('EMO')>=0?'var(--emo)':ax.indexOf('SOC')>=0?'var(--soc)':'var(--text3)';var elId=(v.eleve_id||v.eleve||'').toUpperCase();var timeAgo=v.timestamp?getTimeAgo(v.timestamp):(v.date_lisible||'');return '<div class="af-item"><span class="af-dot" style="background:'+color+'"></span><span class="af-text"><strong>'+elId+'</strong> \u2014 '+(v.competence_id||v.indicateur||ax)+'</span><span class="af-time">'+timeAgo+'</span></div>'}).join('');
+// ========== VALIDATIONS ==========
+
+function renderValidations() {
+  const q = (document.getElementById('valid-search').value || '').toUpperCase();
+  const ft = document.getElementById('valid-filter-type').value || '';
+  const fctx = document.getElementById('valid-filter-ctx').value || '';
+  const fwho = document.getElementById('valid-filter-who').value || '';
+  const fdate = document.getElementById('valid-filter-date').value || '';
+
+  let filtered = validationsList.filter(v => {
+    const elId = (v.eleve_id || '').toUpperCase();
+    if (q && elId.indexOf(q) === -1) return false;
+    if (ft) {
+      const ax = (v.axe || '').toUpperCase();
+      if (ax.indexOf(ft) === -1) return false;
+    }
+    if (fctx && (v.contexte || '') !== fctx) return false;
+    if (fwho && (v.validateur || '') !== fwho) return false;
+    if (fdate) {
+      const vDate = v.timestamp ? new Date(v.timestamp).toISOString().split('T')[0] : '';
+      if (vDate !== fdate) return false;
+    }
+    return true;
+  });
+
+  // KPIs
+  const today = new Date().toISOString().split('T')[0];
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  
+  document.getElementById('valid-kpi-total').textContent = validationsList.length;
+  document.getElementById('valid-kpi-today').textContent = validationsList.filter(v => v.timestamp && new Date(v.timestamp).toISOString().split('T')[0] === today).length;
+  document.getElementById('valid-kpi-week').textContent = validationsList.filter(v => v.timestamp && new Date(v.timestamp) > weekAgo).length;
+  document.getElementById('valid-kpi-students').textContent = new Set(validationsList.map(v => (v.eleve_id || '').toUpperCase())).size;
+
+  // Table
+  const tbody = document.getElementById('valid-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">Aucune validation trouvée</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.slice(0, 100).map(v => {
+    const ax = (v.axe || '').toUpperCase();
+    const cls = ax.indexOf('COG') >= 0 ? 'cog' : ax.indexOf('EMO') >= 0 ? 'emo' : ax.indexOf('SOC') >= 0 ? 'soc' : 'other';
+    const date = v.timestamp ? new Date(v.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : v.date_lisible || '—';
+    const elId = (v.eleve_id || '').toUpperCase();
+    const validateurIcon = v.validateur === 'Tuteur' ? '🏢' : v.validateur === 'Educateur' ? '🎓' : '👨‍🏫';
+    
+    return `<tr>
+      <td><strong>${date}</strong></td>
+      <td><span style="font-weight:800;color:var(--primary)">${elId}</span></td>
+      <td>
+        <span class="valid-objectif">${v.objectif_titre || v.competence_id || v.indicateur || '—'}</span>
+        ${v.commentaire ? `<span class="valid-comment">"${v.commentaire}"</span>` : ''}
+      </td>
+      <td><span class="badge badge-${cls}">${ax || '—'}</span></td>
+      <td><span class="badge-ctx">${v.contexte || v.cadre || '—'}</span></td>
+      <td>
+        <div class="valid-validateur">
+          <span class="valid-validateur-icon">${validateurIcon}</span>
+          <span>${v.validateur || '—'}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
 }
-function getTimeAgo(ts){var diff=Date.now()-ts;var min=Math.floor(diff/60000);if(min<1)return "à l'instant";if(min<60)return 'il y a '+min+'min';var h=Math.floor(min/60);if(h<24)return 'il y a '+h+'h';return 'il y a '+Math.floor(h/24)+'j'}
 
-function renderGlobalCPS(){
-  var counts={COG:0,EMO:0,SOC:0};
-  validationsList.forEach(function(v){var ax=(v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();if(ax.indexOf('COG')>=0)counts.COG++;else if(ax.indexOf('EMO')>=0)counts.EMO++;else if(ax.indexOf('SOC')>=0)counts.SOC++});
-  allStudents.forEach(function(s){s.objectives.filter(function(o){return o.done}).forEach(function(o){var t=(o.type||o.domaine||'').toUpperCase();if(t.indexOf('COG')>=0)counts.COG++;else if(t.indexOf('EMO')>=0)counts.EMO++;else if(t.indexOf('SOC')>=0)counts.SOC++})});
-  var ctx=document.getElementById('chart-global-cps');
-  if(globalChart)globalChart.destroy();
-  globalChart=new Chart(ctx,{type:'doughnut',data:{labels:['Cognitif','\u00c9motionnel','Social'],datasets:[{data:[counts.COG||1,counts.EMO||1,counts.SOC||1],backgroundColor:['rgba(59,130,246,.8)','rgba(244,63,94,.8)','rgba(139,92,246,.8)'],borderWidth:0,borderRadius:4}]},options:{cutout:'65%',plugins:{legend:{position:'bottom',labels:{padding:16,usePointStyle:true,pointStyle:'circle',font:{size:12,weight:'600',family:'Plus Jakarta Sans'}}}}}});
+function clearValidFilters() {
+  document.getElementById('valid-search').value = '';
+  document.getElementById('valid-filter-type').value = '';
+  document.getElementById('valid-filter-ctx').value = '';
+  document.getElementById('valid-filter-who').value = '';
+  document.getElementById('valid-filter-date').value = '';
+  renderValidations();
 }
 
-function openAddModal(){document.getElementById('add-modal').classList.add('show')}
-function closeAddModal(){document.getElementById('add-modal').classList.remove('show')}
-function addStudent(){var code=document.getElementById('add-code').value.trim().toUpperCase();var classe=document.getElementById('add-classe').value.trim().toUpperCase();if(!code){toast('Code requis');return}db.ref(REF_AUTH+'/'+code).update({autorise:false,classe:classe||'',updated_at:Date.now()});document.getElementById('add-code').value='';document.getElementById('add-classe').value='';closeAddModal();toast(code+' ajout\u00e9')}
+function exportValidations() {
+  if (!validationsList.length) {
+    toast('Aucune validation à exporter');
+    return;
+  }
+  
+  const headers = ['Date', 'Heure', 'Élève', 'Objectif', 'Axe CPS', 'Contexte', 'Validateur', 'Commentaire'];
+  const rows = validationsList.map(v => {
+    const d = v.timestamp ? new Date(v.timestamp) : null;
+    return [
+      d ? d.toLocaleDateString('fr-FR') : v.date_lisible || '',
+      d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '',
+      (v.eleve_id || '').toUpperCase(),
+      v.objectif_titre || v.competence_id || v.indicateur || '',
+      v.axe || '',
+      v.contexte || v.cadre || '',
+      v.validateur || '',
+      v.commentaire || ''
+    ];
+  });
 
-function bulkImport(){var text=document.getElementById('bulk-codes').value.trim();if(!text){toast('Rien \u00e0 importer');return}var lines=text.split('\n').map(function(l){return l.trim()}).filter(Boolean);var count=0,updates={};lines.forEach(function(line){var parts=line.split(/[;,\t]/).map(function(p){return p.trim()});var code=parts[0].toUpperCase();var classe=(parts[1]||'').toUpperCase();if(code){updates[REF_AUTH+'/'+code+'/classe']=classe;updates[REF_AUTH+'/'+code+'/updated_at']=Date.now();if(autorisations[code]===undefined)updates[REF_AUTH+'/'+code+'/autorise']=false;count++}});db.ref().update(updates);document.getElementById('bulk-codes').value='';toast(count+' \u00e9l\u00e8ve(s) import\u00e9(s)')}
-
-function saveDatalifeUrl(){localStorage.setItem(DATALIFE_KEY,document.getElementById('datalife-url').value.trim());toast('URL DataLife enregistr\u00e9e')}
-function saveClasses(){localStorage.setItem(CLASSES_KEY,document.getElementById('classes-input').value.trim());renderClassFilter();toast('Classes enregistr\u00e9es')}
-
-function fetchDatalife(){
-  var url=document.getElementById('datalife-url').value.trim();if(!url){toast('URL vide');return}
-  fetch(url,{cache:'no-store'}).then(function(r){return r.json()}).then(function(data){
-    var count=0,updates={},entries={};
-    if(data.eleves&&typeof data.eleves==='object')entries=data.eleves;
-    else if(Array.isArray(data)){data.forEach(function(item){var code=(item.code||item.id||item.CODE||'').toUpperCase();if(code)entries[code]=item})}
-    else{Object.keys(data).forEach(function(k){if(k!=='VERSION_FORMAT'&&k!=='DERNIERE_MAJ'&&k!=='meta'&&typeof data[k]==='object')entries[k.toUpperCase()]=data[k]})}
-    Object.entries(entries).forEach(function(e){var code=e[0].toUpperCase(),info=e[1];var classe=(info.classe||info.class||info.CLASSE||'').toUpperCase();updates[REF_AUTH+'/'+code+'/classe']=classe;updates[REF_AUTH+'/'+code+'/updated_at']=Date.now();if(!autorisations[code])updates[REF_AUTH+'/'+code+'/autorise']=false;count++});
-    if(count>0){db.ref().update(updates);toast(count+' \u00e9l\u00e8ve(s) import\u00e9(s) depuis DataLife')}else{toast('Aucun \u00e9l\u00e8ve trouv\u00e9 dans les donn\u00e9es')}
-  }).catch(function(e){console.error(e);toast('Erreur de chargement DataLife')});
+  const csv = [headers, ...rows].map(r => r.map(c => `"${(c + '').replace(/"/g, '""')}"`).join(';')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `validations_cps_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Export CSV téléchargé');
 }
 
-function toast(msg){var c=document.getElementById('toast-container');var t=document.createElement('div');t.className='toast';t.textContent=msg;c.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(20px)';setTimeout(function(){t.remove()},300)},2500)}
+// ========== ACTIVITY ==========
 
-(function syncBddEleves(){
-  if(!window.BDD_ELEVES||!window.BDD_ELEVES.length)return;
-  var updates={},count=0;
-  window.BDD_ELEVES.forEach(function(e){var code=e.userCode.toUpperCase();if(!autorisations[code]){updates[REF_AUTH+'/'+code+'/classe']=e.classe||'';updates[REF_AUTH+'/'+code+'/updated_at']=Date.now();count++}else if(autorisations[code]&&!autorisations[code].classe){updates[REF_AUTH+'/'+code+'/classe']=e.classe||''}});
-  if(count>0||Object.keys(updates).length>0){window.BDD_ELEVES.forEach(function(e){var code=e.userCode.toUpperCase();if(!autorisations[code])updates[REF_AUTH+'/'+code+'/autorise']=false});try{db.ref().update(updates)}catch(e){console.warn('Sync error',e)}}
-})();
+function renderActivity() {
+  const feed = document.getElementById('activity-feed');
+  if (!validationsList.length) {
+    feed.innerHTML = '<div style="font-size:.8rem;color:var(--text3);padding:20px;text-align:center">Aucune activité récente</div>';
+    return;
+  }
+  
+  feed.innerHTML = validationsList.slice(0, 8).map(v => {
+    const ax = (v.axe || '').toUpperCase();
+    const color = ax.indexOf('COG') >= 0 ? 'var(--cog)' : ax.indexOf('EMO') >= 0 ? 'var(--emo)' : ax.indexOf('SOC') >= 0 ? 'var(--soc)' : 'var(--text3)';
+    const elId = (v.eleve_id || '').toUpperCase();
+    const timeAgo = v.timestamp ? getTimeAgo(v.timestamp) : (v.date_lisible || '');
+    return `<div class="af-item">
+      <span class="af-dot" style="background:${color}"></span>
+      <span class="af-text"><strong>${elId}</strong> — ${v.objectif_titre || v.indicateur || ax}</span>
+      <span class="af-time">${timeAgo}</span>
+    </div>`;
+  }).join('');
+}
+
+function getTimeAgo(ts) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "à l'instant";
+  if (min < 60) return 'il y a ' + min + 'min';
+  const h = Math.floor(min / 60);
+  if (h < 24) return 'il y a ' + h + 'h';
+  return 'il y a ' + Math.floor(h / 24) + 'j';
+}
+
+function renderGlobalCPS() {
+  const counts = { COG: 0, EMO: 0, SOC: 0 };
+  validationsList.forEach(v => {
+    const ax = (v.axe || '').toUpperCase();
+    if (ax.indexOf('COG') >= 0) counts.COG++;
+    else if (ax.indexOf('EMO') >= 0) counts.EMO++;
+    else if (ax.indexOf('SOC') >= 0) counts.SOC++;
+  });
+  
+  const ctx = document.getElementById('chart-global-cps');
+  if (globalChart) globalChart.destroy();
+  globalChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Cognitif', 'Émotionnel', 'Social'],
+      datasets: [{
+        data: [counts.COG || 1, counts.EMO || 1, counts.SOC || 1],
+        backgroundColor: ['rgba(59,130,246,.8)', 'rgba(244,63,94,.8)', 'rgba(139,92,246,.8)'],
+        borderWidth: 0,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle' } } }
+    }
+  });
+}
+
+// ========== SETTINGS ==========
+
+function saveCodeEnseignant() {
+  const newCode = document.getElementById('input-code-enseignant').value.trim().toUpperCase();
+  if (!newCode || newCode.length < 4) {
+    toast('Code trop court (minimum 4 caractères)');
+    return;
+  }
+  db.ref(REF_CONFIG + '/code_validation').set(newCode);
+  document.getElementById('input-code-enseignant').value = '';
+  toast('Code enseignant mis à jour : ' + newCode);
+}
+
+function openAddModal() { document.getElementById('add-modal').classList.add('show'); }
+function closeAddModal() { document.getElementById('add-modal').classList.remove('show'); }
+
+function addStudent() {
+  const code = document.getElementById('add-code').value.trim().toUpperCase();
+  const classe = document.getElementById('add-classe').value.trim().toUpperCase();
+  if (!code) { toast('Code requis'); return; }
+  db.ref(REF_AUTH + '/' + code).update({ autorise: false, classe: classe || '', updated_at: Date.now() });
+  document.getElementById('add-code').value = '';
+  document.getElementById('add-classe').value = '';
+  closeAddModal();
+  toast(code + ' ajouté');
+}
+
+function bulkImport() {
+  const text = document.getElementById('bulk-codes').value.trim();
+  if (!text) { toast('Rien à importer'); return; }
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  let count = 0;
+  const updates = {};
+  lines.forEach(line => {
+    const parts = line.split(/[;,\t]/).map(p => p.trim());
+    const code = parts[0].toUpperCase();
+    const classe = (parts[1] || '').toUpperCase();
+    if (code) {
+      updates[REF_AUTH + '/' + code + '/classe'] = classe;
+      updates[REF_AUTH + '/' + code + '/updated_at'] = Date.now();
+      if (!autorisations[code]) updates[REF_AUTH + '/' + code + '/autorise'] = false;
+      count++;
+    }
+  });
+  db.ref().update(updates);
+  document.getElementById('bulk-codes').value = '';
+  toast(count + ' élève(s) importé(s)');
+}
+
+function saveClasses() {
+  localStorage.setItem(CLASSES_KEY, document.getElementById('classes-input').value.trim());
+  renderClassFilter();
+  toast('Classes enregistrées');
+}
+
+function toast(msg) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2500);
+}
+
+// Init classes input
+document.getElementById('classes-input').value = localStorage.getItem(CLASSES_KEY) || '';
 </script>
 </body>
 </html>
