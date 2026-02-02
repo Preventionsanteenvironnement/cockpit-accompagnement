@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cockpit CPS — Accompagnement</title>
+<title>Cockpit — Mon Objectif</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -360,6 +360,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
 <div class="toast-container" id="toast-container"></div>
 
+<script src="js/data_eleves.js"></script>
 <script>
 // ══════════════════════════════════════════════
 //  FIREBASE CONFIG
@@ -537,9 +538,10 @@ function renderClassFilter(){
   const sel = document.getElementById('filter-class');
   const current = sel.value;
   const classes = [...new Set(allStudents.map(s=>s.classe).filter(Boolean))].sort();
-  // Also add saved classes
+  // Also add saved classes + BDD_ELEVES classes
   const saved = (localStorage.getItem(CLASSES_KEY)||'').split(',').map(c=>c.trim()).filter(Boolean);
-  const all = [...new Set([...classes,...saved])].sort();
+  const bddClasses = (window.BDD_ELEVES||[]).map(e=>e.classe).filter(Boolean);
+  const all = [...new Set([...classes,...saved,...bddClasses])].sort();
   sel.innerHTML = '<option value="">Toutes les classes</option>' + all.map(c=>`<option value="${c}"${c===current?' selected':''}>${c}</option>`).join('');
 }
 
@@ -923,6 +925,39 @@ function toast(msg){
   c.appendChild(t);
   setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';setTimeout(()=>t.remove(),300)},2500);
 }
+
+// ══════════════════════════════════════════════
+//  AUTO-SYNC BDD_ELEVES → Firebase
+// ══════════════════════════════════════════════
+(async function syncBddEleves(){
+  if(!window.BDD_ELEVES || !window.BDD_ELEVES.length) return;
+  const updates = {};
+  let count = 0;
+  window.BDD_ELEVES.forEach(e => {
+    const code = e.userCode.toUpperCase();
+    // Only set classe and init autorise=false if NOT already in Firebase
+    // We use update to not overwrite existing autorise state
+    if(!autorisations[code]) {
+      updates[`${REF_AUTH}/${code}/classe`] = e.classe || '';
+      updates[`${REF_AUTH}/${code}/updated_at`] = Date.now();
+      // Don't set autorise if it already exists
+      count++;
+    } else if(autorisations[code] && !autorisations[code].classe) {
+      // Update classe if missing
+      updates[`${REF_AUTH}/${code}/classe`] = e.classe || '';
+    }
+  });
+  if(count > 0 || Object.keys(updates).length > 0) {
+    // First pass: set autorise=false for truly new students
+    window.BDD_ELEVES.forEach(e => {
+      const code = e.userCode.toUpperCase();
+      if(!autorisations[code]) {
+        updates[`${REF_AUTH}/${code}/autorise`] = false;
+      }
+    });
+    try { await db.ref().update(updates); } catch(e) { console.warn('Sync error', e); }
+  }
+})();
 </script>
 </body>
 </html>
