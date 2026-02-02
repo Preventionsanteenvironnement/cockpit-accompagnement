@@ -1,65 +1,928 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cockpit Enseignant</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script> <style>
-        body { background: #f3f4f6; }
-        .sidebar { height: 100vh; position: fixed; width: 250px; background: white; border-right: 1px solid #e5e7eb; padding: 20px; }
-        .content { margin-left: 250px; padding: 20px; }
-        .nav-link.active { background: #e0e7ff; color: #4f46e5; font-weight: bold; border-radius: 8px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cockpit CPS — Accompagnement</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sidebar-w:260px;--sidebar-bg:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);
+  --bg:#f8fafc;--surface:#fff;--border:rgba(0,0,0,.06);
+  --text:#0f172a;--text2:#64748b;--text3:#94a3b8;
+  --primary:#6366f1;--primary-light:#eef2ff;
+  --cog:#3b82f6;--emo:#f43f5e;--soc:#8b5cf6;
+  --success:#10b981;--danger:#ef4444;--warning:#f59e0b;
+  --radius:14px;--radius-sm:10px;
+  --shadow:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.07);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex}
+
+/* ── Sidebar ── */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--sidebar-bg);display:flex;flex-direction:column;z-index:50;transition:transform .3s var(--ease)}
+.sidebar-brand{padding:28px 24px 24px;display:flex;align-items:center;gap:14px}
+.brand-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--primary),var(--soc));display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:800}
+.brand-name{color:#fff;font-weight:800;font-size:1rem;letter-spacing:-.3px}
+.brand-sub{color:#64748b;font-size:.7rem;font-weight:500;margin-top:2px;text-transform:uppercase;letter-spacing:1px}
+.sidebar-nav{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;border:none;background:transparent;color:#94a3b8;font-size:.85rem;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s var(--ease);text-align:left;width:100%}
+.nav-item:hover{color:#cbd5e1;background:rgba(255,255,255,.05)}
+.nav-item.active{color:#fff;background:rgba(99,102,241,.2);box-shadow:inset 3px 0 0 var(--primary)}
+.nav-item svg{width:20px;height:20px;flex-shrink:0}
+.sidebar-footer{padding:16px 24px;border-top:1px solid rgba(255,255,255,.06);color:#475569;font-size:.7rem}
+
+/* ── Main ── */
+.main{margin-left:var(--sidebar-w);flex:1;height:100vh;overflow-y:auto;padding:32px 36px;transition:margin-left .3s var(--ease)}
+.section{display:none;animation:fadeUp .35s var(--ease)}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.page-title{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;margin-bottom:6px}
+.page-sub{color:var(--text2);font-size:.85rem;margin-bottom:28px}
+
+/* ── KPI Cards ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;position:relative;overflow:hidden;transition:all .2s var(--ease)}
+.kpi-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-card.kpi-total::before{background:var(--primary)}
+.kpi-card.kpi-auth::before{background:var(--success)}
+.kpi-card.kpi-goals::before{background:var(--warning)}
+.kpi-card.kpi-valid::before{background:var(--cog)}
+.kpi-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:8px}
+.kpi-value{font-size:2rem;font-weight:800;letter-spacing:-1px;line-height:1}
+.kpi-detail{font-size:.75rem;color:var(--text2);margin-top:6px}
+
+/* ── Student Grid ── */
+.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.search-input{flex:1;min-width:200px;padding:10px 16px;border:1px solid rgba(0,0,0,.08);border-radius:var(--radius-sm);font-family:var(--font);font-size:.85rem;background:var(--surface);outline:none;transition:border .15s}
+.search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.filter-select{padding:10px 14px;border:1px solid rgba(0,0,0,.08);border-radius:var(--radius-sm);font-family:var(--font);font-size:.8rem;font-weight:600;background:var(--surface);cursor:pointer;color:var(--text)}
+.btn{padding:10px 20px;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-weight:700;font-size:.8rem;cursor:pointer;transition:all .15s var(--ease);display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:#4f46e5;box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{background:var(--surface);border-color:rgba(0,0,0,.12)}
+.btn-sm{padding:7px 14px;font-size:.75rem}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#059669}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#dc2626}
+
+.students-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.student-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;cursor:pointer;transition:all .2s var(--ease);position:relative}
+.student-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.student-card .sc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sc-code{font-size:1.1rem;font-weight:800;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+.sc-classe{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);background:var(--bg);padding:3px 8px;border-radius:6px}
+.sc-stats{display:flex;gap:16px;font-size:.75rem;color:var(--text2)}
+.sc-stats span{display:flex;align-items:center;gap:4px}
+.sc-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.status-dot.on{background:var(--success);box-shadow:0 0 8px rgba(16,185,129,.4);animation:pulse 2s infinite}
+.status-dot.off{background:var(--danger);opacity:.5}
+@keyframes pulse{0%,100%{box-shadow:0 0 4px rgba(16,185,129,.3)}50%{box-shadow:0 0 12px rgba(16,185,129,.6)}}
+.status-label{font-size:.75rem;font-weight:700;display:flex;align-items:center;gap:6px}
+.status-label.on{color:var(--success)}
+.status-label.off{color:var(--text3)}
+.toggle-btn{width:44px;height:24px;border-radius:12px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle-btn.on{background:var(--success)}
+.toggle-btn.off{background:#cbd5e1}
+.toggle-btn::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s var(--ease)}
+.toggle-btn.on::after{transform:translateX(20px)}
+
+/* ── Drawer ── */
+.drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.3);backdrop-filter:blur(2px);z-index:90;opacity:0;pointer-events:none;transition:opacity .3s var(--ease)}
+.drawer-backdrop.open{opacity:1;pointer-events:all}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:460px;max-width:90vw;background:var(--surface);box-shadow:-10px 0 40px rgba(0,0,0,.08);transform:translateX(100%);transition:transform .35s var(--ease);z-index:100;overflow-y:auto;display:flex;flex-direction:column}
+.drawer.open{transform:translateX(0)}
+.drawer-header{padding:24px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:10}
+.drawer-title{font-size:1.15rem;font-weight:800}
+.drawer-close{width:36px;height:36px;border-radius:10px;border:none;background:var(--bg);cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.drawer-close:hover{background:#e2e8f0}
+.drawer-body{padding:24px 28px;flex:1}
+.drawer-section{margin-bottom:28px}
+.drawer-section-title{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:14px}
+.auth-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:16px}
+.radar-container{width:100%;max-width:280px;margin:0 auto 20px}
+.stat-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.stat-pill{padding:6px 14px;border-radius:999px;font-size:.75rem;font-weight:700;display:flex;align-items:center;gap:6px}
+.stat-pill.cog{background:rgba(59,130,246,.1);color:var(--cog)}
+.stat-pill.emo{background:rgba(244,63,94,.1);color:var(--emo)}
+.stat-pill.soc{background:rgba(139,92,246,.1);color:var(--soc)}
+.mini-card{background:var(--bg);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;font-size:.8rem}
+.mini-card .mc-label{font-weight:600}
+.mini-card .mc-value{color:var(--text2);font-weight:500}
+.mood-row{display:flex;gap:6px;flex-wrap:wrap}
+.mood-chip{padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:700;background:var(--bg)}
+.link-ext{font-size:.8rem;color:var(--primary);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.link-ext:hover{text-decoration:underline}
+
+/* ── Validations Table ── */
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.table-wrap table{width:100%;border-collapse:collapse;font-size:.8rem}
+.table-wrap th{text-align:left;padding:12px 16px;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
+.table-wrap td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+.table-wrap tr:last-child td{border-bottom:none}
+.table-wrap tr:hover td{background:rgba(99,102,241,.02)}
+.badge{display:inline-flex;padding:3px 10px;border-radius:6px;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.badge-cog{background:rgba(59,130,246,.1);color:var(--cog)}
+.badge-emo{background:rgba(244,63,94,.1);color:var(--emo)}
+.badge-soc{background:rgba(139,92,246,.1);color:var(--soc)}
+.badge-other{background:var(--bg);color:var(--text3)}
+
+/* ── Settings ── */
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px 28px;margin-bottom:20px}
+.settings-card h4{font-size:.95rem;font-weight:800;margin-bottom:6px}
+.settings-card p{font-size:.8rem;color:var(--text2);margin-bottom:16px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 14px;border:1px solid rgba(0,0,0,.08);border-radius:var(--radius-sm);font-family:var(--font);font-size:.85rem;outline:none;transition:border .15s}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.form-group textarea{resize:vertical;min-height:80px}
+
+/* ── Add Student Modal ── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-backdrop.show{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius);padding:32px;width:440px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.15);animation:modalIn .25s var(--ease)}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal h3{font-size:1.1rem;font-weight:800;margin-bottom:20px}
+
+/* ── Toast ── */
+.toast-container{position:fixed;top:20px;right:20px;z-index:300;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 20px;background:#0f172a;color:#fff;border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;animation:toastIn .3s var(--ease);box-shadow:0 8px 25px rgba(0,0,0,.15)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── Empty State ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-state .es-icon{font-size:3rem;margin-bottom:16px;opacity:.4}
+.empty-state .es-title{font-size:1rem;font-weight:700;color:var(--text2);margin-bottom:6px}
+.empty-state .es-text{font-size:.8rem;max-width:320px;margin:0 auto 20px}
+
+/* ── Activity Feed ── */
+.activity-feed{display:flex;flex-direction:column;gap:6px}
+.af-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.8rem}
+.af-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.af-text{flex:1;color:var(--text2)}
+.af-text strong{color:var(--text);font-weight:700}
+.af-time{color:var(--text3);font-size:.7rem;font-weight:600;white-space:nowrap}
+
+/* ── Mobile ── */
+.hamburger{display:none;position:fixed;top:16px;left:16px;z-index:60;width:44px;height:44px;border-radius:12px;border:none;background:var(--surface);box-shadow:var(--shadow);cursor:pointer;font-size:1.2rem}
+@media(max-width:900px){
+  .hamburger{display:flex;align-items:center;justify-content:center}
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:20px 16px;padding-top:70px}
+  .drawer{width:100%;max-width:100%}
+}
+</style>
 </head>
 <body>
 
-<div class="sidebar">
-    <h4 class="mb-4">🚀 Cockpit</h4>
-    <nav class="nav flex-column gap-2">
-        <a class="nav-link active" href="#" onclick="showSection('liste')">👥 Élèves</a>
-        <a class="nav-link" href="#" onclick="showSection('scan')">📷 Scanner QR</a>
-        <a class="nav-link" href="#" onclick="showSection('validations')">✅ Validations</a>
-        <a class="nav-link" href="#" onclick="showSection('ref')">📚 Référentiel</a>
-    </nav>
-</div>
+<button class="hamburger" id="hamburger" onclick="toggleSidebar()">☰</button>
 
-<div class="content">
-    
-    <div id="sec-liste">
-        <h3>Suivi des Élèves</h3>
-        <div id="liste-eleves" class="row g-3 mt-2"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">◈</div>
+    <div><div class="brand-name">CPS Cockpit</div><div class="brand-sub">Accompagnement</div></div>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" data-sec="dashboard" onclick="showSection('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Tableau de bord
+    </button>
+    <button class="nav-item" data-sec="eleves" onclick="showSection('eleves')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/><circle cx="19" cy="7" r="3"/><path d="M22 21v-1a3 3 0 00-2-2.8"/></svg>
+      Élèves
+    </button>
+    <button class="nav-item" data-sec="validations" onclick="showSection('validations')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+      Validations
+    </button>
+    <button class="nav-item" data-sec="settings" onclick="showSection('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Réglages
+    </button>
+  </nav>
+  <div class="sidebar-footer">Santé publique France · CPS v2.0</div>
+</aside>
+
+<main class="main" id="main-content">
+
+  <!-- ═══ DASHBOARD ═══ -->
+  <section class="section active" id="sec-dashboard">
+    <h1 class="page-title">Tableau de bord</h1>
+    <p class="page-sub">Vue d'ensemble du dispositif CPS</p>
+    <div class="kpi-row" id="kpi-row">
+      <div class="kpi-card kpi-total"><div class="kpi-label">Élèves suivis</div><div class="kpi-value" id="kpi-total">0</div><div class="kpi-detail">codes enregistrés</div></div>
+      <div class="kpi-card kpi-auth"><div class="kpi-label">Autorisés</div><div class="kpi-value" id="kpi-auth">0</div><div class="kpi-detail">accès actif au dispositif</div></div>
+      <div class="kpi-card kpi-goals"><div class="kpi-label">Objectifs actifs</div><div class="kpi-value" id="kpi-goals">0</div><div class="kpi-detail">en cours chez les élèves</div></div>
+      <div class="kpi-card kpi-valid"><div class="kpi-label">Validations</div><div class="kpi-value" id="kpi-valid">0</div><div class="kpi-detail">compétences validées</div></div>
     </div>
-
-    <div id="sec-scan" style="display:none;">
-        <h3>Validation Rapide</h3>
-        <div class="card p-3" style="max-width: 500px;">
-            <div id="reader" style="width: 100%"></div>
-            <div id="scan-result" class="mt-3 alert alert-success" style="display:none;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div class="drawer-section-title">Activité récente</div>
+        <div class="activity-feed" id="activity-feed">
+          <div class="empty-state" style="padding:30px"><div class="es-text">Aucune activité pour le moment</div></div>
         </div>
+      </div>
+      <div>
+        <div class="drawer-section-title">Répartition CPS</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;max-width:300px">
+          <canvas id="chart-global-cps"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ÉLÈVES ═══ -->
+  <section class="section" id="sec-eleves">
+    <h1 class="page-title">Élèves</h1>
+    <p class="page-sub">Gestion des accès et suivi individuel</p>
+    <div class="toolbar">
+      <input type="text" class="search-input" id="search-input" placeholder="Rechercher un code élève..." oninput="renderStudents()">
+      <select class="filter-select" id="filter-class" onchange="renderStudents()"><option value="">Toutes les classes</option></select>
+      <select class="filter-select" id="filter-status" onchange="renderStudents()">
+        <option value="">Tous les statuts</option><option value="on">Autorisés</option><option value="off">Non autorisés</option>
+      </select>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Ajouter</button>
+    </div>
+    <div class="students-grid" id="students-grid"></div>
+  </section>
+
+  <!-- ═══ VALIDATIONS ═══ -->
+  <section class="section" id="sec-validations">
+    <h1 class="page-title">Validations</h1>
+    <p class="page-sub">Historique des compétences validées par les adultes</p>
+    <div class="toolbar">
+      <input type="text" class="search-input" id="valid-search" placeholder="Filtrer par code élève..." oninput="renderValidations()">
+      <select class="filter-select" id="valid-filter-type" onchange="renderValidations()">
+        <option value="">Tous les axes</option><option value="COG">Cognitif</option><option value="EMO">Émotionnel</option><option value="SOC">Social</option>
+      </select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Élève</th><th>Axe</th><th>Compétence</th><th>Contexte</th><th>Validateur</th></tr></thead>
+      <tbody id="valid-tbody"></tbody>
+    </table></div>
+  </section>
+
+  <!-- ═══ RÉGLAGES ═══ -->
+  <section class="section" id="sec-settings">
+    <h1 class="page-title">Réglages</h1>
+    <p class="page-sub">Configuration du dispositif</p>
+    <div class="settings-card">
+      <h4>Ajout groupé d'élèves</h4>
+      <p>Collez les codes élèves (un par ligne, format : CODE;CLASSE ou juste CODE)</p>
+      <div class="form-group"><textarea id="bulk-codes" placeholder="AB12;2MELEC&#10;CD34;TCAP&#10;EF56"></textarea></div>
+      <button class="btn btn-primary" onclick="bulkImport()">Importer</button>
+    </div>
+    <div class="settings-card">
+      <h4>URL DataLife (optionnel)</h4>
+      <p>URL publique de la base élèves globale pour synchronisation automatique</p>
+      <div class="form-group"><input type="url" id="datalife-url" placeholder="https://mapse.fr/data/datalife.json"></div>
+      <button class="btn btn-ghost" onclick="saveDatalifeUrl()">Enregistrer</button>
+      <button class="btn btn-primary btn-sm" style="margin-left:8px" onclick="fetchDatalife()">Tester & Importer</button>
+    </div>
+    <div class="settings-card">
+      <h4>Classes disponibles</h4>
+      <p>Liste des classes (séparées par des virgules). Utilisée pour le filtrage.</p>
+      <div class="form-group"><input type="text" id="classes-input" placeholder="2MELEC, TCAP, 2PSR, 2CAN..."></div>
+      <button class="btn btn-ghost" onclick="saveClasses()">Enregistrer</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- ═══ DRAWER (Détail élève) ═══ -->
+<div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawer-code">—</div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="auth-row">
+      <div>
+        <div style="font-weight:700;font-size:.85rem" id="drawer-auth-label">Accès autorisé</div>
+        <div style="font-size:.7rem;color:var(--text3)" id="drawer-classe-label">—</div>
+      </div>
+      <button class="toggle-btn on" id="drawer-toggle" onclick="toggleDrawerAuth()"></button>
     </div>
 
-    <div id="sec-validations" style="display:none;">
-        <h3>Historique Validations</h3>
-        <table class="table table-striped mt-3">
-            <thead><tr><th>Date</th><th>Élève</th><th>Type</th><th>Compétence</th><th>Détail</th></tr></thead>
-            <tbody id="table-validations"></tbody>
-        </table>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Profil CPS</div>
+      <div class="stat-pills" id="drawer-pills"></div>
+      <div class="radar-container"><canvas id="drawer-radar"></canvas></div>
     </div>
 
-    <div id="sec-ref" style="display:none;">
-        <h3>Structure Référentiel</h3>
-        <div class="alert alert-info">Arborescence Catégories > Générales > Spécifiques (Prêt à remplir)</div>
-        <ul id="ref-tree"></ul>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Objectifs en cours</div>
+      <div id="drawer-goals"></div>
     </div>
 
+    <div class="drawer-section">
+      <div class="drawer-section-title">Météo émotionnelle (7 derniers jours)</div>
+      <div class="mood-row" id="drawer-mood"></div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Dernières validations</div>
+      <div id="drawer-validations"></div>
+    </div>
+
+    <div class="drawer-section" style="padding-top:12px;border-top:1px solid var(--border)">
+      <a class="link-ext" id="drawer-link" href="#" target="_blank">Ouvrir l'espace élève ↗</a>
+    </div>
+  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-<script src="js/firebase-config.js"></script>
-<script>if (typeof firebaseConfig !== 'undefined') firebase.initializeApp(firebaseConfig);</script>
-<script src="js/admin-auth.js"></script>
+<!-- ═══ ADD MODAL ═══ -->
+<div class="modal-backdrop" id="add-modal">
+  <div class="modal">
+    <h3>Ajouter un élève</h3>
+    <div class="form-group"><label>Code élève</label><input type="text" id="add-code" placeholder="Ex: AB12" style="text-transform:uppercase"></div>
+    <div class="form-group"><label>Classe (optionnel)</label><input type="text" id="add-classe" placeholder="Ex: 2MELEC"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" onclick="closeAddModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="addStudent()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  FIREBASE CONFIG
+// ══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAWdCMvOiAJln3eT9LIAQD3RWJUD0IQcLI",
+  authDomain: "devoirs-pse.firebaseapp.com",
+  databaseURL: "https://devoirs-pse-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "devoirs-pse",
+  storageBucket: "devoirs-pse.appspot.com",
+  messagingSenderId: "614730413904",
+  appId: "1:614730413904:web:a5dd478af5de30f6bede55"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let autorisations = {};
+let elevesData = {};
+let validationsList = [];
+let allStudents = [];
+let selectedCode = null;
+let drawerChart = null;
+let globalChart = null;
+
+const CLASSES_KEY = 'cockpit_cps_classes';
+const DATALIFE_KEY = 'cockpit_cps_datalife_url';
+const REF_AUTH = 'accompagnement/autorisations';
+const REF_ELEVES = 'accompagnement/eleves';
+const REF_VALID = 'accompagnement/validations';
+
+// Charger paramètres sauvés
+(function loadSettings(){
+  const url = localStorage.getItem(DATALIFE_KEY);
+  if(url) document.getElementById('datalife-url').value = url;
+  const cls = localStorage.getItem(CLASSES_KEY);
+  if(cls) document.getElementById('classes-input').value = cls;
+})();
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.toggle('active',n.dataset.sec===id);
+  });
+  // Mobile: close sidebar
+  document.getElementById('sidebar').classList.remove('open');
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ══════════════════════════════════════════════
+//  DATA SUBSCRIPTIONS
+// ══════════════════════════════════════════════
+db.ref(REF_AUTH).on('value', snap=>{
+  autorisations = snap.val()||{};
+  mergeAndRender();
+});
+
+db.ref(REF_ELEVES).on('value', snap=>{
+  elevesData = snap.val()||{};
+  mergeAndRender();
+});
+
+db.ref(REF_VALID).limitToLast(200).on('value', snap=>{
+  const obj = snap.val()||{};
+  validationsList = Object.entries(obj).map(([k,v])=>({id:k,...v}))
+    .sort((a,b)=>(b.timestamp||b.created_at||0)-(a.timestamp||a.created_at||0));
+  renderValidations();
+  renderActivity();
+});
+
+// ══════════════════════════════════════════════
+//  MERGE & RENDER
+// ══════════════════════════════════════════════
+function mergeAndRender(){
+  const codes = new Set([...Object.keys(autorisations),...Object.keys(elevesData)]);
+  allStudents = [...codes].sort().map(code=>{
+    const auth = autorisations[code]||{};
+    const data = elevesData[code]||{};
+    const objectives = data.objectifs ? Object.values(data.objectifs) : [];
+    const activeGoals = objectives.filter(o=>!o.done).length;
+    const doneGoals = objectives.filter(o=>o.done).length;
+    return {
+      code, autorise:!!(auth.autorise), classe:auth.classe||'',
+      parcours:auth.parcours||'', referent:auth.referent||'',
+      activeGoals, doneGoals, data, objectives,
+      meteo: data.meteo||{}, competences: data.competences_validees||{}
+    };
+  });
+  renderKPIs();
+  renderStudents();
+  renderClassFilter();
+  renderGlobalCPS();
+  if(selectedCode) renderDrawerContent(selectedCode);
+}
+
+// ══════════════════════════════════════════════
+//  KPIs
+// ══════════════════════════════════════════════
+function renderKPIs(){
+  const total = allStudents.length;
+  const auth = allStudents.filter(s=>s.autorise).length;
+  const goals = allStudents.reduce((s,st)=>s+st.activeGoals,0);
+  const valid = validationsList.length;
+  animateKPI('kpi-total',total);
+  animateKPI('kpi-auth',auth);
+  animateKPI('kpi-goals',goals);
+  animateKPI('kpi-valid',valid);
+}
+function animateKPI(id,target){
+  const el = document.getElementById(id);
+  const current = parseInt(el.textContent)||0;
+  if(current===target){el.textContent=target;return}
+  const step = target>current?1:-1;
+  const dur = Math.min(400, Math.abs(target-current)*30);
+  const steps = Math.abs(target-current);
+  let i=0;
+  const iv = setInterval(()=>{
+    i++;
+    el.textContent = current + step*i;
+    if(i>=steps) clearInterval(iv);
+  }, dur/steps);
+}
+
+// ══════════════════════════════════════════════
+//  STUDENTS GRID
+// ══════════════════════════════════════════════
+function renderStudents(){
+  const q = (document.getElementById('search-input')?.value||'').toUpperCase();
+  const fc = document.getElementById('filter-class')?.value||'';
+  const fs = document.getElementById('filter-status')?.value||'';
+  
+  let filtered = allStudents.filter(s=>{
+    if(q && !s.code.includes(q)) return false;
+    if(fc && s.classe!==fc) return false;
+    if(fs==='on' && !s.autorise) return false;
+    if(fs==='off' && s.autorise) return false;
+    return true;
+  });
+
+  const grid = document.getElementById('students-grid');
+  if(!filtered.length){
+    grid.innerHTML = `<div class="empty-state"><div class="es-icon">👥</div><div class="es-title">Aucun élève trouvé</div><div class="es-text">Ajoutez des élèves via le bouton "+" ou importez-les depuis les réglages.</div></div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map((s,i)=>`
+    <div class="student-card" onclick="openDrawer('${s.code}')" style="animation-delay:${i*30}ms">
+      <div class="sc-top">
+        <span class="sc-code">${s.code}</span>
+        ${s.classe?`<span class="sc-classe">${s.classe}</span>`:''}
+      </div>
+      <div class="sc-stats">
+        <span>📋 ${s.activeGoals} objectif${s.activeGoals>1?'s':''}</span>
+        <span>✅ ${s.doneGoals} validé${s.doneGoals>1?'s':''}</span>
+      </div>
+      <div class="sc-bottom">
+        <span class="status-label ${s.autorise?'on':'off'}">
+          <span class="status-dot ${s.autorise?'on':'off'}"></span>
+          ${s.autorise?'Autorisé':'Non autorisé'}
+        </span>
+        <button class="toggle-btn ${s.autorise?'on':'off'}" onclick="event.stopPropagation();toggleAuth('${s.code}')"></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderClassFilter(){
+  const sel = document.getElementById('filter-class');
+  const current = sel.value;
+  const classes = [...new Set(allStudents.map(s=>s.classe).filter(Boolean))].sort();
+  // Also add saved classes
+  const saved = (localStorage.getItem(CLASSES_KEY)||'').split(',').map(c=>c.trim()).filter(Boolean);
+  const all = [...new Set([...classes,...saved])].sort();
+  sel.innerHTML = '<option value="">Toutes les classes</option>' + all.map(c=>`<option value="${c}"${c===current?' selected':''}>${c}</option>`).join('');
+}
+
+// ══════════════════════════════════════════════
+//  AUTHORIZATION TOGGLE
+// ══════════════════════════════════════════════
+async function toggleAuth(code){
+  const current = autorisations[code]?.autorise||false;
+  await db.ref(`${REF_AUTH}/${code}`).update({autorise:!current, updated_at:Date.now()});
+  toast(`${code} ${!current?'autorisé':'accès retiré'}`);
+}
+
+// ══════════════════════════════════════════════
+//  DRAWER (STUDENT DETAIL)
+// ══════════════════════════════════════════════
+function openDrawer(code){
+  selectedCode = code;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-backdrop').classList.add('open');
+  renderDrawerContent(code);
+}
+function closeDrawer(){
+  selectedCode = null;
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-backdrop').classList.remove('open');
+}
+
+function renderDrawerContent(code){
+  const s = allStudents.find(x=>x.code===code);
+  if(!s) return;
+
+  document.getElementById('drawer-code').textContent = `${s.code}${s.classe?' · '+s.classe:''}`;
+  document.getElementById('drawer-classe-label').textContent = s.parcours?`Parcours : ${s.parcours}`:(s.classe||'Classe non renseignée');
+  
+  // Auth toggle
+  const toggle = document.getElementById('drawer-toggle');
+  const label = document.getElementById('drawer-auth-label');
+  toggle.className = `toggle-btn ${s.autorise?'on':'off'}`;
+  label.textContent = s.autorise?'Accès autorisé':'Accès non autorisé';
+  label.style.color = s.autorise?'var(--success)':'var(--text3)';
+
+  // CPS counts
+  const counts = {COG:0,EMO:0,SOC:0};
+  const totals = {COG:0,EMO:0,SOC:0};
+  s.objectives.forEach(o=>{
+    const t = (o.type||o.domaine||'').toUpperCase();
+    const ax = t.includes('COG')?'COG':t.includes('EMO')?'EMO':t.includes('SOC')?'SOC':null;
+    if(ax) totals[ax]++;
+    if(ax && o.done) counts[ax]++;
+  });
+
+  // Also count from competences_validees
+  Object.entries(s.competences).forEach(([k,v])=>{
+    if(v){
+      if(k.startsWith('C')) counts.COG = (counts.COG||0);
+      if(k.startsWith('E')) counts.EMO = (counts.EMO||0);
+      if(k.startsWith('S')) counts.SOC = (counts.SOC||0);
+    }
+  });
+
+  // Count validations for this student
+  const studentValidations = validationsList.filter(v=>{
+    const elId = (v.eleve_id||v.eleve||'').toUpperCase();
+    return elId === code;
+  });
+  studentValidations.forEach(v=>{
+    const ax = (v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();
+    if(ax.includes('COG')) counts.COG++;
+    else if(ax.includes('EMO')) counts.EMO++;
+    else if(ax.includes('SOC')) counts.SOC++;
+  });
+
+  document.getElementById('drawer-pills').innerHTML = `
+    <span class="stat-pill cog">Cognitif ${counts.COG}</span>
+    <span class="stat-pill emo">Émotionnel ${counts.EMO}</span>
+    <span class="stat-pill soc">Social ${counts.SOC}</span>
+  `;
+
+  // Radar
+  const ctx = document.getElementById('drawer-radar');
+  if(drawerChart) drawerChart.destroy();
+  drawerChart = new Chart(ctx, {
+    type:'radar',
+    data:{
+      labels:['Cognitif','Émotionnel','Social'],
+      datasets:[{
+        data:[counts.COG, counts.EMO, counts.SOC],
+        backgroundColor:'rgba(99,102,241,.15)',
+        borderColor:'rgba(99,102,241,.6)',
+        borderWidth:2, pointBackgroundColor:'#6366f1',
+        pointRadius:5, pointHoverRadius:7
+      }]
+    },
+    options:{
+      scales:{r:{beginAtZero:true,ticks:{display:false},grid:{color:'rgba(0,0,0,.05)'},pointLabels:{font:{size:12,weight:'700',family:'Plus Jakarta Sans'}}}},
+      plugins:{legend:{display:false}},
+      animation:{duration:500}
+    }
+  });
+
+  // Goals
+  const goalsDiv = document.getElementById('drawer-goals');
+  const active = s.objectives.filter(o=>!o.done);
+  if(active.length){
+    goalsDiv.innerHTML = active.slice(0,5).map(o=>{
+      const t = (o.type||o.domaine||'').toUpperCase();
+      const cls = t.includes('COG')?'cog':t.includes('EMO')?'emo':t.includes('SOC')?'soc':'other';
+      return `<div class="mini-card"><span class="mc-label">${o.titre||'Sans titre'}</span><span class="badge badge-${cls}">${cls.toUpperCase()}</span></div>`;
+    }).join('');
+    if(active.length>5) goalsDiv.innerHTML += `<div style="font-size:.7rem;color:var(--text3);text-align:center;padding:6px">+ ${active.length-5} autre(s)</div>`;
+  } else {
+    goalsDiv.innerHTML = `<div style="font-size:.8rem;color:var(--text3);font-style:italic">Aucun objectif en cours</div>`;
+  }
+
+  // Mood
+  const moodDiv = document.getElementById('drawer-mood');
+  const meteoEntries = Object.entries(s.meteo).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7);
+  if(meteoEntries.length){
+    moodDiv.innerHTML = meteoEntries.map(([date,m])=>`<span class="mood-chip" title="${date}">${m.secondary||m.primary||'?'}</span>`).join('');
+  } else {
+    moodDiv.innerHTML = `<span style="font-size:.8rem;color:var(--text3);font-style:italic">Aucune donnée</span>`;
+  }
+
+  // Validations for this student
+  const vDiv = document.getElementById('drawer-validations');
+  if(studentValidations.length){
+    vDiv.innerHTML = studentValidations.slice(0,5).map(v=>{
+      const ax = (v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();
+      const cls = ax.includes('COG')?'cog':ax.includes('EMO')?'emo':ax.includes('SOC')?'soc':'other';
+      const date = v.date_lisible || (v.timestamp ? new Date(v.timestamp).toLocaleDateString('fr-FR') : '');
+      return `<div class="mini-card"><span class="mc-label">${v.competence_id||v.competence||ax}</span><div><span class="badge badge-${cls}">${cls.toUpperCase()}</span> <span class="mc-value">${date}</span></div></div>`;
+    }).join('');
+  } else {
+    vDiv.innerHTML = `<span style="font-size:.8rem;color:var(--text3);font-style:italic">Aucune validation</span>`;
+  }
+
+  // Link
+  const baseUrl = window.location.hostname.includes('github.io') 
+    ? window.location.origin + '/accompagnement/' 
+    : '../accompagnement/';
+  document.getElementById('drawer-link').href = `${baseUrl}?id=${code}`;
+}
+
+function toggleDrawerAuth(){
+  if(!selectedCode) return;
+  toggleAuth(selectedCode);
+}
+
+// ══════════════════════════════════════════════
+//  VALIDATIONS TABLE
+// ══════════════════════════════════════════════
+function renderValidations(){
+  const q = (document.getElementById('valid-search')?.value||'').toUpperCase();
+  const ft = document.getElementById('valid-filter-type')?.value||'';
+  
+  let filtered = validationsList.filter(v=>{
+    const elId = (v.eleve_id||v.eleve||'').toUpperCase();
+    if(q && !elId.includes(q)) return false;
+    if(ft){
+      const ax = (v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();
+      if(!ax.includes(ft)) return false;
+    }
+    return true;
+  });
+
+  const tbody = document.getElementById('valid-tbody');
+  if(!filtered.length){
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">Aucune validation</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.slice(0,50).map(v=>{
+    const ax = (v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();
+    const cls = ax.includes('COG')?'cog':ax.includes('EMO')?'emo':ax.includes('SOC')?'soc':'other';
+    const date = v.date_lisible || (v.timestamp ? new Date(v.timestamp).toLocaleDateString('fr-FR') : '—');
+    const elId = (v.eleve_id||v.eleve||'').toUpperCase();
+    return `<tr>
+      <td>${date}</td>
+      <td><strong>${elId}</strong></td>
+      <td><span class="badge badge-${cls}">${ax||'—'}</span></td>
+      <td>${v.competence_id||v.indicateur||'—'}</td>
+      <td>${v.contexte||v.cadre||'—'}</td>
+      <td>${v.validateur||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  ACTIVITY FEED
+// ══════════════════════════════════════════════
+function renderActivity(){
+  const feed = document.getElementById('activity-feed');
+  if(!validationsList.length){
+    feed.innerHTML = `<div style="font-size:.8rem;color:var(--text3);padding:20px;text-align:center">Aucune activité récente</div>`;
+    return;
+  }
+  feed.innerHTML = validationsList.slice(0,8).map(v=>{
+    const ax = (v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();
+    const color = ax.includes('COG')?'var(--cog)':ax.includes('EMO')?'var(--emo)':ax.includes('SOC')?'var(--soc)':'var(--text3)';
+    const elId = (v.eleve_id||v.eleve||'').toUpperCase();
+    const date = v.date_lisible || (v.timestamp ? new Date(v.timestamp).toLocaleDateString('fr-FR') : '');
+    const timeAgo = v.timestamp ? getTimeAgo(v.timestamp) : date;
+    return `<div class="af-item">
+      <span class="af-dot" style="background:${color}"></span>
+      <span class="af-text"><strong>${elId}</strong> — ${v.competence_id||v.indicateur||ax}</span>
+      <span class="af-time">${timeAgo}</span>
+    </div>`;
+  }).join('');
+}
+
+function getTimeAgo(ts){
+  const diff = Date.now()-ts;
+  const min = Math.floor(diff/60000);
+  if(min<1) return "à l'instant";
+  if(min<60) return `il y a ${min}min`;
+  const h = Math.floor(min/60);
+  if(h<24) return `il y a ${h}h`;
+  const d = Math.floor(h/24);
+  return `il y a ${d}j`;
+}
+
+// ══════════════════════════════════════════════
+//  GLOBAL CPS CHART
+// ══════════════════════════════════════════════
+function renderGlobalCPS(){
+  const counts = {COG:0,EMO:0,SOC:0};
+  validationsList.forEach(v=>{
+    const ax = (v.axe||v.competence||v.type_reconnaissance||'').toUpperCase();
+    if(ax.includes('COG')) counts.COG++;
+    else if(ax.includes('EMO')) counts.EMO++;
+    else if(ax.includes('SOC')) counts.SOC++;
+  });
+  // Also count done objectives
+  allStudents.forEach(s=>{
+    s.objectives.filter(o=>o.done).forEach(o=>{
+      const t = (o.type||o.domaine||'').toUpperCase();
+      if(t.includes('COG')) counts.COG++;
+      else if(t.includes('EMO')) counts.EMO++;
+      else if(t.includes('SOC')) counts.SOC++;
+    });
+  });
+
+  const ctx = document.getElementById('chart-global-cps');
+  if(globalChart) globalChart.destroy();
+  globalChart = new Chart(ctx,{
+    type:'doughnut',
+    data:{
+      labels:['Cognitif','Émotionnel','Social'],
+      datasets:[{
+        data:[counts.COG||1,counts.EMO||1,counts.SOC||1],
+        backgroundColor:['rgba(59,130,246,.8)','rgba(244,63,94,.8)','rgba(139,92,246,.8)'],
+        borderWidth:0, borderRadius:4
+      }]
+    },
+    options:{
+      cutout:'65%',
+      plugins:{legend:{position:'bottom',labels:{padding:16,usePointStyle:true,pointStyle:'circle',font:{size:12,weight:'600',family:'Plus Jakarta Sans'}}}}
+    }
+  });
+}
+
+// ══════════════════════════════════════════════
+//  ADD STUDENT
+// ══════════════════════════════════════════════
+function openAddModal(){document.getElementById('add-modal').classList.add('show')}
+function closeAddModal(){document.getElementById('add-modal').classList.remove('show')}
+
+async function addStudent(){
+  const code = document.getElementById('add-code').value.trim().toUpperCase();
+  const classe = document.getElementById('add-classe').value.trim().toUpperCase();
+  if(!code){toast('Code requis');return}
+  await db.ref(`${REF_AUTH}/${code}`).update({
+    autorise:false, classe:classe||'', updated_at:Date.now()
+  });
+  document.getElementById('add-code').value='';
+  document.getElementById('add-classe').value='';
+  closeAddModal();
+  toast(`${code} ajouté`);
+}
+
+// ══════════════════════════════════════════════
+//  BULK IMPORT
+// ══════════════════════════════════════════════
+async function bulkImport(){
+  const text = document.getElementById('bulk-codes').value.trim();
+  if(!text){toast('Rien à importer');return}
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  let count = 0;
+  const updates = {};
+  lines.forEach(line=>{
+    const parts = line.split(/[;,\t]/).map(p=>p.trim());
+    const code = parts[0].toUpperCase();
+    const classe = (parts[1]||'').toUpperCase();
+    if(code){
+      updates[`${REF_AUTH}/${code}/classe`] = classe;
+      updates[`${REF_AUTH}/${code}/updated_at`] = Date.now();
+      if(autorisations[code]===undefined){
+        updates[`${REF_AUTH}/${code}/autorise`] = false;
+      }
+      count++;
+    }
+  });
+  await db.ref().update(updates);
+  document.getElementById('bulk-codes').value='';
+  toast(`${count} élève(s) importé(s)`);
+}
+
+// ══════════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════════
+function saveDatalifeUrl(){
+  const url = document.getElementById('datalife-url').value.trim();
+  localStorage.setItem(DATALIFE_KEY, url);
+  toast('URL DataLife enregistrée');
+}
+function saveClasses(){
+  const cls = document.getElementById('classes-input').value.trim();
+  localStorage.setItem(CLASSES_KEY, cls);
+  renderClassFilter();
+  toast('Classes enregistrées');
+}
+
+async function fetchDatalife(){
+  const url = document.getElementById('datalife-url').value.trim();
+  if(!url){toast('URL vide');return}
+  try{
+    const resp = await fetch(url, {cache:'no-store'});
+    const data = await resp.json();
+    // Try to detect format and extract codes
+    let count = 0;
+    const updates = {};
+    // Format 1: { "CODE": { "classe": "..." } }
+    // Format 2: { "eleves": { "CODE": {...} } }
+    // Format 3: array of objects
+    let entries = {};
+    if(data.eleves && typeof data.eleves === 'object') entries = data.eleves;
+    else if(Array.isArray(data)){
+      data.forEach(item=>{
+        const code = (item.code||item.id||item.CODE||'').toUpperCase();
+        if(code) entries[code] = item;
+      });
+    } else {
+      // Assume keys are codes
+      Object.keys(data).forEach(k=>{
+        if(k!=='VERSION_FORMAT' && k!=='DERNIERE_MAJ' && k!=='meta' && typeof data[k]==='object'){
+          entries[k.toUpperCase()] = data[k];
+        }
+      });
+    }
+    
+    Object.entries(entries).forEach(([code,info])=>{
+      code = code.toUpperCase();
+      const classe = (info.classe||info.class||info.CLASSE||'').toUpperCase();
+      updates[`${REF_AUTH}/${code}/classe`] = classe;
+      updates[`${REF_AUTH}/${code}/updated_at`] = Date.now();
+      if(!autorisations[code]){
+        updates[`${REF_AUTH}/${code}/autorise`] = false;
+      }
+      count++;
+    });
+
+    if(count>0){
+      await db.ref().update(updates);
+      toast(`${count} élève(s) importé(s) depuis DataLife`);
+    } else {
+      toast('Aucun élève trouvé dans les données');
+    }
+  }catch(e){
+    console.error(e);
+    toast('Erreur de chargement DataLife');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════
+function toast(msg){
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className='toast';
+  t.textContent=msg;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';setTimeout(()=>t.remove(),300)},2500);
+}
+</script>
 </body>
 </html>
