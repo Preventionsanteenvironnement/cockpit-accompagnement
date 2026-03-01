@@ -77,10 +77,13 @@
   let unlocked = sessionStorage.getItem(SESSION_UNLOCK_KEY) === '1';
   let ensuringSpecialDefaults = false;
   let specialDefaultsReady = false;
+  let lastScanText = '';
+  let lastScanAt = 0;
 
   const SPECIAL_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const SPECIAL_CODE_DIGITS = '23456789';
   const RESERVED_SPECIAL_CODES = new Set(['PROFPSE', 'INVITE']);
+  const SCAN_DUPLICATE_COOLDOWN_MS = 3000;
   const SCHEDULE_DAYS = [
     { key: 'lundi', label: 'Lundi' },
     { key: 'mardi', label: 'Mardi' },
@@ -511,6 +514,59 @@
     const mapped = byAcc.get(c);
     if (!mapped) return {};
     return elevesCache[c] || elevesCache[safeUpper(mapped.userCode)] || {};
+  }
+
+  function resolveEleveDataCode(loginCode) {
+    const code = safeUpper(loginCode);
+    const mapped = byAcc.get(code);
+    if (mapped && mapped.userCode) return safeUpper(mapped.userCode);
+    return code;
+  }
+
+  async function confirmAndMarkGoalFromQr(rec) {
+    if (!rec || rec.flux !== 1 || !rec.eleve || !rec.objectif) return;
+
+    const eleveLoginCode = safeUpper(rec.eleve);
+    const dataCode = resolveEleveDataCode(eleveLoginCode);
+    const goalPath = `${REF_ELEVES}/${dataCode}/objectifs/${rec.objectif}`;
+    const goalRef = firebase.database().ref(goalPath);
+    const snap = await goalRef.once('value');
+
+    if (!snap.exists()) {
+      setUnlockStatus(`Scan enregistré, mais objectif introuvable (${eleveLoginCode} / ${rec.objectif}).`, false);
+      return;
+    }
+
+    const goal = snap.val() || {};
+    const titre = String(goal.titre || rec.objectif || 'objectif').trim();
+    const shortTitle = titre.length > 80 ? `${titre.slice(0, 77)}...` : titre;
+    const ask = `Valider l'objectif "${shortTitle}" pour ${eleveLoginCode} ?`;
+    if (!confirm(ask)) {
+      setUnlockStatus('Scan enregistré sans validation finale de l’objectif.', false);
+      return;
+    }
+
+    const patch = {
+      validated_via_qr: true,
+      validated_by: 'enseignant_qr',
+      validated_at: Date.now(),
+      updated_at: Date.now(),
+    };
+    if (goal.done !== true) {
+      patch.done = true;
+      patch.date_done = new Date().toISOString();
+    }
+
+    await goalRef.update(patch);
+    await goalRef.child('historique').push({
+      action: 'Validé par enseignant (scan QR cockpit)',
+      date: new Date().toISOString(),
+    });
+
+    setUnlockStatus(`Objectif validé pour ${eleveLoginCode}.`, true);
+    if (selectedAccCode && safeUpper(selectedAccCode) === eleveLoginCode) {
+      openEleve(eleveLoginCode);
+    }
   }
 
   async function setAuthState(accCode, autorise) {
@@ -1127,6 +1183,12 @@
           setUnlockStatus('Déverrouille le cockpit avant de valider un scan.', false);
           return;
         }
+        const now = Date.now();
+        if (decodedText === lastScanText && now - lastScanAt < SCAN_DUPLICATE_COOLDOWN_MS) {
+          return;
+        }
+        lastScanText = decodedText;
+        lastScanAt = now;
         try {
           const payload = JSON.parse(decodedText);
           const fluxNum = Number(payload && payload.flux);
@@ -1146,8 +1208,10 @@
             return;
           }
           await firebase.database().ref(REF_VALIDATIONS).push(rec);
+          await confirmAndMarkGoalFromQr(rec);
         } catch (e) {
           console.error('QR invalide', e);
+          setUnlockStatus('QR invalide (format JSON attendu).', false);
         }
       },
       () => {
