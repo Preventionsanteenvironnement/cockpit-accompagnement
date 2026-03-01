@@ -186,11 +186,11 @@ tr:last-child td { border-bottom: none; }
         <div class="card" style="margin-bottom:14px;">
           <h2>Sécurisation enseignant</h2>
           <div class="row">
-            <input class="input" id="teacher-code" type="password" placeholder="Code validation" maxlength="16" autocomplete="off">
+            <input class="input" id="teacher-code" type="password" placeholder="Code enseignant (PROFPSE / INVITE)" maxlength="16" autocomplete="off">
             <button class="btn primary" id="btn-unlock">Déverrouiller</button>
             <span class="status" id="unlock-status">Cockpit verrouillé</span>
           </div>
-          <p class="muted" style="margin-top:8px;">Le code est vérifié localement côté cockpit (obfusqué), sans exposition JSON.</p>
+          <p class="muted" style="margin-top:8px;">Code insensible à la casse et aux espaces (ex: prof pse). Vérification locale obfusquée, sans exposition JSON.</p>
         </div>
 
         <div class="card" style="margin-bottom:14px;">
