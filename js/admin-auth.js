@@ -507,11 +507,15 @@
 
     items.forEach((v) => {
       const tr = document.createElement('tr');
+      const eleve = escapeHtml(safeUpper(v.eleve));
+      const flux = escapeHtml(String(v.flux || ''));
+      const competence = escapeHtml(safeUpper(v.competence || v.type_reconnaissance || ''));
+      const when = escapeHtml(fmtDate(v.timestamp || v.created_at));
       tr.innerHTML = `
-        <td>${safeUpper(v.eleve)}</td>
-        <td>${v.flux || ''}</td>
-        <td>${safeUpper(v.competence || v.type_reconnaissance || '')}</td>
-        <td>${fmtDate(v.timestamp || v.created_at)}</td>
+        <td>${eleve}</td>
+        <td>${flux}</td>
+        <td>${competence}</td>
+        <td>${when}</td>
       `;
       elListeValidations.appendChild(tr);
     });
@@ -606,12 +610,22 @@
         }
         try {
           const payload = JSON.parse(decodedText);
+          const fluxNum = Number(payload && payload.flux);
           const rec = {
-            ...payload,
-            eleve: safeUpper(payload.eleve),
+            eleve: safeUpper(payload && payload.eleve).slice(0, 16),
+            flux: fluxNum === 2 ? 2 : 1,
+            competence: safeUpper((payload && payload.competence) || (payload && payload.type_reconnaissance) || '').slice(0, 32),
+            type_reconnaissance: safeUpper(payload && payload.type_reconnaissance).slice(0, 32),
+            objectif: String((payload && payload.objectif) || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80),
+            cadre: String((payload && payload.cadre) || '').slice(0, 64),
+            timestamp: Number(payload && payload.timestamp) || Date.now(),
             created_at: Date.now(),
             source: 'cockpit',
           };
+          if (!rec.eleve) {
+            setUnlockStatus('QR invalide : code élève manquant.', false);
+            return;
+          }
           await firebase.database().ref(REF_VALIDATIONS).push(rec);
         } catch (e) {
           console.error('QR invalide', e);

@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "accompagnement": {
+      "config": {
+        ".read": true,
+        ".write": false
+      },
+      "autorisations": {
+        "$userCode": {
+          ".read": true,
+          ".write": "newData.hasChildren(['autorise']) && newData.child('autorise').isBoolean() && (!newData.child('updated_at').exists() || newData.child('updated_at').isNumber()) && (!newData.child('horaires').exists() || newData.child('horaires').isMap()) && (!newData.child('userCode').exists() || newData.child('userCode').isString())"
+        }
+      },
+      "eleves": {
+        "$userCode": {
+          ".read": true,
+          ".write": "root.child('accompagnement/autorisations/' + $userCode + '/autorise').val() === true"
+        }
+      },
+      "validations": {
+        ".read": true,
+        "$validationId": {
+          ".write": "newData.hasChildren(['eleve','flux','timestamp','source']) && newData.child('eleve').isString() && newData.child('eleve').val().matches(/^[A-Z0-9]{4,16}$/) && newData.child('flux').isNumber() && (newData.child('flux').val() === 1 || newData.child('flux').val() === 2) && newData.child('timestamp').isNumber() && newData.child('source').isString() && newData.child('source').val() === 'cockpit'",
+          ".validate": "newData.hasChildren(['eleve','flux','timestamp','source'])"
+        }
+      }
+    }
+  }
+}
