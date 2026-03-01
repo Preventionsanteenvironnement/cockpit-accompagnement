@@ -1,0 +1,638 @@
+[
+  {
+    "classe": "B1AGO1",
+    "accCode": "MQ46"
+  },
+  {
+    "classe": "B1AGO1",
+    "accCode": "CJ76"
+  },
+  {
+    "classe": "B1AGO1",
+    "accCode": "BJ74"
+  },
+  {
+    "classe": "B1AGO1",
+    "accCode": "RX55"
+  },
+  {
+    "classe": "B1AGO1",
+    "accCode": "SR48"
+  },
+  {
+    "classe": "B1AGO1",
+    "accCode": "SL52"
+  },
+  {
+    "classe": "B1AGO1",
+    "accCode": "WA77"
+  },
+  {
+    "classe": "B1AGO1",
+    "accCode": "AA72"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "WC59"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "PX49"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "UE73"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "TG27"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "XN83"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "DF77"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "CL85"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "MQ59"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "BP35"
+  },
+  {
+    "classe": "B1AGO2",
+    "accCode": "JV24"
+  },
+  {
+    "classe": "B1MELEC",
+    "accCode": "HF78"
+  },
+  {
+    "classe": "B1MELEC",
+    "accCode": "WC27"
+  },
+  {
+    "classe": "B1MELEC",
+    "accCode": "HS89"
+  },
+  {
+    "classe": "B1MELEC",
+    "accCode": "WV22"
+  },
+  {
+    "classe": "B1MELEC",
+    "accCode": "QV45"
+  },
+  {
+    "classe": "B1MELEC",
+    "accCode": "LF49"
+  },
+  {
+    "classe": "B1MELEC",
+    "accCode": "DA47"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "TF34"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "PK73"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "UG33"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "TL35"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "QU97"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "PC63"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "CX65"
+  },
+  {
+    "classe": "B2GATL1",
+    "accCode": "PF89"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "TM33"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "JE79"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "ME27"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "DX59"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "MT62"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "QL44"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "BM68"
+  },
+  {
+    "classe": "B2GATL2",
+    "accCode": "LN25"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "TX59"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "UC79"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "UE29"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "AY36"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "FR82"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "JN43"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "VB98"
+  },
+  {
+    "classe": "B2MELEC",
+    "accCode": "FF94"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "LC43"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "BJ39"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "WC92"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "DS58"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "VX59"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "YJ43"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "MF66"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "NX83"
+  },
+  {
+    "classe": "BTAGO1",
+    "accCode": "RY43"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "RR25"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "HR92"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "RC34"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "DJ64"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "WG78"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "CE75"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "JF32"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "QA98"
+  },
+  {
+    "classe": "BTAGO2",
+    "accCode": "AW98"
+  },
+  {
+    "classe": "BTMELEC",
+    "accCode": "XX79"
+  },
+  {
+    "classe": "BTMELEC",
+    "accCode": "ZZ44"
+  },
+  {
+    "classe": "BTMELEC",
+    "accCode": "UG56"
+  },
+  {
+    "classe": "BTMELEC",
+    "accCode": "YF74"
+  },
+  {
+    "classe": "BTMELEC",
+    "accCode": "SX42"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "EA63"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "PQ78"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "XT89"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "ET77"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "CY36"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "YF36"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "DP32"
+  },
+  {
+    "classe": "C1CAN",
+    "accCode": "GL83"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "NG54"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "XV93"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "SH73"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "YX76"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "YA56"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "JR75"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "FE94"
+  },
+  {
+    "classe": "C1HORT",
+    "accCode": "VR39"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "VR87"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "AL77"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "SQ93"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "HK83"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "MQ44"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "KS84"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "HH82"
+  },
+  {
+    "classe": "C1JP",
+    "accCode": "YE98"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "AF25"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "PV78"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "ZN38"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "ZE36"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "ZD56"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "BS67"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "WN65"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "PV74"
+  },
+  {
+    "classe": "C1PSR",
+    "accCode": "KT43"
+  },
+  {
+    "classe": "C1VAN",
+    "accCode": "EQ74"
+  },
+  {
+    "classe": "C1VAN",
+    "accCode": "ZT83"
+  },
+  {
+    "classe": "C1VAN",
+    "accCode": "WZ84"
+  },
+  {
+    "classe": "C1VAN",
+    "accCode": "SV96"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "DQ62"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "WG52"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "CB97"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "TW29"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "CY66"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "TW34"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "YX24"
+  },
+  {
+    "classe": "C2CAN",
+    "accCode": "TH27"
+  },
+  {
+    "classe": "C2HORT",
+    "accCode": "MU69"
+  },
+  {
+    "classe": "C2HORT",
+    "accCode": "PJ95"
+  },
+  {
+    "classe": "C2HORT",
+    "accCode": "RL67"
+  },
+  {
+    "classe": "C2HORT",
+    "accCode": "WY32"
+  },
+  {
+    "classe": "C2HORT",
+    "accCode": "RU25"
+  },
+  {
+    "classe": "C2HORT",
+    "accCode": "MR33"
+  },
+  {
+    "classe": "C2HORT",
+    "accCode": "LK63"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "RK69"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "ZS89"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "NQ85"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "QF55"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "VM22"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "LN97"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "PE78"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "DD32"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "RX96"
+  },
+  {
+    "classe": "C2JP",
+    "accCode": "KB86"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "LF99"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "QK73"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "RJ27"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "KZ66"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "AY69"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "UA95"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "SZ26"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "BG88"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "RJ95"
+  },
+  {
+    "classe": "C2PSR",
+    "accCode": "XW69"
+  },
+  {
+    "classe": "C2VAN",
+    "accCode": "NZ98"
+  },
+  {
+    "classe": "C2VAN",
+    "accCode": "XH95"
+  },
+  {
+    "classe": "C2VAN",
+    "accCode": "HR48"
+  },
+  {
+    "classe": "C2VAN",
+    "accCode": "SG73"
+  },
+  {
+    "classe": "C2VAN",
+    "accCode": "PD57"
+  },
+  {
+    "classe": "C2VAN",
+    "accCode": "NE34"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "BR62"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "CD74"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "FH85"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "GJ96"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "KM27"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "NP38"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "QT49"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "RV57"
+  },
+  {
+    "classe": "A_COMPLETER",
+    "accCode": "WX68"
+  }
+]

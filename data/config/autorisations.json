@@ -3,7 +3,6 @@
   "DERNIERE_MAJ": "2026-02-02",
   
   "VALIDATION_ENSEIGNANT": {
-    "code_validation": "CPS2026",
     "description": "Code unique partagé par tous les enseignants pour valider les objectifs élèves",
     "actif": true
   },

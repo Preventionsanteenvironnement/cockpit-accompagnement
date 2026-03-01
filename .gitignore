@@ -1,0 +1,7 @@
+# Donnees nominatives locales (RGPD) - ne jamais versionner
+/data/private/*.csv
+/data/private/*.txt
+
+# Garder la structure du dossier privee sans les donnees
+!/data/private/.gitkeep
+!/data/private/README_LOCAL.md
