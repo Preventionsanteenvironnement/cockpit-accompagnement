@@ -176,6 +176,31 @@ tr:last-child td { border-bottom: none; }
 .small {
   font-size: 0.75rem;
 }
+.schedule-grid {
+  display: grid;
+  gap: 12px;
+}
+.schedule-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px;
+}
+.schedule-panel h3 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.schedule-table {
+  min-width: 520px;
+}
+.schedule-table th,
+.schedule-table td {
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+.schedule-time {
+  width: 130px;
+}
 .hidden { display: none; }
 </style>
 </head>
@@ -251,6 +276,61 @@ tr:last-child td { border-bottom: none; }
             </select>
             <button class="btn" id="btn-reset-filter">Réinitialiser</button>
             <span class="small" id="table-count">0 élève</span>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px;">
+          <h2>Cadre horaire d’accès</h2>
+          <p class="muted" style="margin-top:0;">Règle globale + exceptions par code ACC. Les codes spéciaux avec <code>bypass_schedule=true</code> restent libres.</p>
+          <div class="schedule-grid">
+            <div class="schedule-panel">
+              <h3>Global (par défaut)</h3>
+              <div class="table-wrap">
+                <table class="schedule-table">
+                  <thead>
+                    <tr>
+                      <th>Jour</th>
+                      <th>Actif</th>
+                      <th>Début</th>
+                      <th>Fin</th>
+                    </tr>
+                  </thead>
+                  <tbody id="global-schedule-body"></tbody>
+                </table>
+              </div>
+              <div class="row" style="margin-top:8px;">
+                <button class="btn" id="btn-load-global-schedule">Charger</button>
+                <button class="btn success" id="btn-save-global-schedule">Enregistrer global</button>
+                <button class="btn danger" id="btn-clear-global-schedule">Supprimer global</button>
+                <span class="status" id="status-global-schedule"></span>
+              </div>
+            </div>
+            <div class="schedule-panel">
+              <h3>Exception par code ACC</h3>
+              <div class="row">
+                <input class="input" id="schedule-code" type="text" placeholder="Code ACC (ex: RX71)" maxlength="16" autocomplete="off">
+                <button class="btn" id="btn-use-selected-code">Code sélectionné</button>
+                <button class="btn" id="btn-load-code-schedule">Charger code</button>
+              </div>
+              <div class="table-wrap" style="margin-top:8px;">
+                <table class="schedule-table">
+                  <thead>
+                    <tr>
+                      <th>Jour</th>
+                      <th>Actif</th>
+                      <th>Début</th>
+                      <th>Fin</th>
+                    </tr>
+                  </thead>
+                  <tbody id="code-schedule-body"></tbody>
+                </table>
+              </div>
+              <div class="row" style="margin-top:8px;">
+                <button class="btn success" id="btn-save-code-schedule">Enregistrer exception</button>
+                <button class="btn danger" id="btn-clear-code-schedule">Supprimer exception</button>
+                <span class="status" id="status-code-schedule"></span>
+              </div>
+            </div>
           </div>
         </div>
 

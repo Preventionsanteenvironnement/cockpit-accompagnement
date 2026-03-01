@@ -9,6 +9,7 @@
   const REF_ELEVES = `${DB_ROOT}/eleves`;
   const REF_AUTORISATIONS = `${DB_ROOT}/autorisations`;
   const REF_VALIDATIONS = `${DB_ROOT}/validations`;
+  const REF_HORAIRES_GLOBAL = `${DB_ROOT}/config/horaires_global`;
 
   // Codes de déverrouillage obfusqués (CPS2026, PROFPSE, INVITE)
   const UNLOCK_CODES_B64 = ['Q1BTMjAyNg==', 'UFJPRlBTRQ==', 'SU5WSVRF'];
@@ -44,6 +45,18 @@
   const btnCreateSpecial = document.getElementById('btn-create-special');
   const elSpecialCodesList = document.getElementById('special-codes-list');
   const elSpecialCreateStatus = document.getElementById('special-create-status');
+  const elGlobalScheduleBody = document.getElementById('global-schedule-body');
+  const elCodeScheduleBody = document.getElementById('code-schedule-body');
+  const btnLoadGlobalSchedule = document.getElementById('btn-load-global-schedule');
+  const btnSaveGlobalSchedule = document.getElementById('btn-save-global-schedule');
+  const btnClearGlobalSchedule = document.getElementById('btn-clear-global-schedule');
+  const elGlobalScheduleStatus = document.getElementById('status-global-schedule');
+  const elScheduleCode = document.getElementById('schedule-code');
+  const btnUseSelectedCode = document.getElementById('btn-use-selected-code');
+  const btnLoadCodeSchedule = document.getElementById('btn-load-code-schedule');
+  const btnSaveCodeSchedule = document.getElementById('btn-save-code-schedule');
+  const btnClearCodeSchedule = document.getElementById('btn-clear-code-schedule');
+  const elCodeScheduleStatus = document.getElementById('status-code-schedule');
 
   if (typeof firebase === 'undefined' || !firebase.apps?.length) {
     console.error('Firebase non initialise');
@@ -68,6 +81,15 @@
   const SPECIAL_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const SPECIAL_CODE_DIGITS = '23456789';
   const RESERVED_SPECIAL_CODES = new Set(['PROFPSE', 'INVITE']);
+  const SCHEDULE_DAYS = [
+    { key: 'lundi', label: 'Lundi' },
+    { key: 'mardi', label: 'Mardi' },
+    { key: 'mercredi', label: 'Mercredi' },
+    { key: 'jeudi', label: 'Jeudi' },
+    { key: 'vendredi', label: 'Vendredi' },
+    { key: 'samedi', label: 'Samedi' },
+    { key: 'dimanche', label: 'Dimanche' },
+  ];
 
   function safeUpper(v) {
     return String(v || '').trim().toUpperCase();
@@ -95,6 +117,109 @@
     elSpecialCreateStatus.classList.remove('ok', 'err');
     if (type === 'ok') elSpecialCreateStatus.classList.add('ok');
     if (type === 'err') elSpecialCreateStatus.classList.add('err');
+  }
+
+  function setStatus(el, message, type) {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.remove('ok', 'err');
+    if (type === 'ok') el.classList.add('ok');
+    if (type === 'err') el.classList.add('err');
+  }
+
+  function setGlobalScheduleStatus(message, type) {
+    setStatus(elGlobalScheduleStatus, message, type);
+  }
+
+  function setCodeScheduleStatus(message, type) {
+    setStatus(elCodeScheduleStatus, message, type);
+  }
+
+  function normalizeTime(v, fallback) {
+    const s = String(v || '').trim();
+    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(s) ? s : fallback;
+  }
+
+  function timeToMinutes(v) {
+    const [h, m] = String(v || '00:00')
+      .split(':')
+      .map((x) => Number(x));
+    return h * 60 + m;
+  }
+
+  function defaultScheduleTemplate() {
+    const base = {};
+    SCHEDULE_DAYS.forEach((d) => {
+      base[d.key] = { actif: true, debut: '00:00', fin: '23:59' };
+    });
+    return base;
+  }
+
+  function normalizeSchedule(raw) {
+    const base = defaultScheduleTemplate();
+    if (!raw || typeof raw !== 'object') return base;
+    SCHEDULE_DAYS.forEach((d) => {
+      const current = raw[d.key] || {};
+      base[d.key] = {
+        actif: current.actif === true,
+        debut: normalizeTime(current.debut, '00:00'),
+        fin: normalizeTime(current.fin, '23:59'),
+      };
+    });
+    return base;
+  }
+
+  function renderScheduleTable(bodyEl, scheduleObj) {
+    if (!bodyEl) return;
+    bodyEl.innerHTML = '';
+    SCHEDULE_DAYS.forEach((d) => {
+      const day = scheduleObj[d.key] || { actif: true, debut: '00:00', fin: '23:59' };
+      const tr = document.createElement('tr');
+      tr.dataset.day = d.key;
+      tr.innerHTML = `
+        <td>${escapeHtml(d.label)}</td>
+        <td><input type="checkbox" class="schedule-active" ${day.actif ? 'checked' : ''}></td>
+        <td><input type="time" class="input schedule-time schedule-start" value="${escapeHtml(day.debut)}"></td>
+        <td><input type="time" class="input schedule-time schedule-end" value="${escapeHtml(day.fin)}"></td>
+      `;
+      bodyEl.appendChild(tr);
+    });
+  }
+
+  function collectScheduleTable(bodyEl) {
+    const out = {};
+    if (!bodyEl) return out;
+    bodyEl.querySelectorAll('tr[data-day]').forEach((tr) => {
+      const day = tr.dataset.day;
+      if (!day) return;
+      const active = !!tr.querySelector('.schedule-active')?.checked;
+      const debut = normalizeTime(tr.querySelector('.schedule-start')?.value, '00:00');
+      const fin = normalizeTime(tr.querySelector('.schedule-end')?.value, '23:59');
+      out[day] = { actif: active, debut, fin };
+    });
+    return out;
+  }
+
+  function validateSchedule(horaires) {
+    for (let i = 0; i < SCHEDULE_DAYS.length; i += 1) {
+      const day = SCHEDULE_DAYS[i];
+      const slot = horaires[day.key];
+      if (!slot || slot.actif !== true) continue;
+      if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(slot.debut) || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(slot.fin)) {
+        return `Format horaire invalide pour ${day.label}.`;
+      }
+      if (timeToMinutes(slot.fin) <= timeToMinutes(slot.debut)) {
+        return `La fin doit être après le début pour ${day.label}.`;
+      }
+    }
+    return '';
+  }
+
+  function syncScheduleWriteState() {
+    if (btnSaveGlobalSchedule) btnSaveGlobalSchedule.disabled = !unlocked;
+    if (btnClearGlobalSchedule) btnClearGlobalSchedule.disabled = !unlocked;
+    if (btnSaveCodeSchedule) btnSaveCodeSchedule.disabled = !unlocked;
+    if (btnClearCodeSchedule) btnClearCodeSchedule.disabled = !unlocked;
   }
 
   function isStudentCode(code) {
@@ -403,6 +528,165 @@
       });
   }
 
+  function scheduleTargetCode() {
+    return normalizeCode(elScheduleCode ? elScheduleCode.value : '').slice(0, 16);
+  }
+
+  function setScheduleCodeValue(code) {
+    if (!elScheduleCode) return;
+    elScheduleCode.value = safeUpper(code).slice(0, 16);
+  }
+
+  async function loadGlobalSchedule() {
+    try {
+      const snap = await firebase.database().ref(REF_HORAIRES_GLOBAL).once('value');
+      if (!snap.exists()) {
+        renderScheduleTable(elGlobalScheduleBody, defaultScheduleTemplate());
+        setGlobalScheduleStatus('Aucun cadre global enregistré (accès continu par défaut).', '');
+        return;
+      }
+      renderScheduleTable(elGlobalScheduleBody, normalizeSchedule(snap.val()));
+      setGlobalScheduleStatus('Cadre global chargé.', 'ok');
+    } catch (e) {
+      console.error(e);
+      setGlobalScheduleStatus('Erreur lors du chargement du cadre global.', 'err');
+    }
+  }
+
+  async function saveGlobalSchedule() {
+    if (!unlocked) {
+      setGlobalScheduleStatus('Déverrouille le cockpit pour enregistrer.', 'err');
+      return;
+    }
+    const horaires = collectScheduleTable(elGlobalScheduleBody);
+    const validationError = validateSchedule(horaires);
+    if (validationError) {
+      setGlobalScheduleStatus(validationError, 'err');
+      return;
+    }
+    try {
+      await firebase.database().ref(REF_HORAIRES_GLOBAL).set(horaires);
+      setGlobalScheduleStatus('Cadre global enregistré.', 'ok');
+    } catch (e) {
+      console.error(e);
+      setGlobalScheduleStatus('Erreur lors de l’enregistrement global.', 'err');
+    }
+  }
+
+  async function clearGlobalSchedule() {
+    if (!unlocked) {
+      setGlobalScheduleStatus('Déverrouille le cockpit pour supprimer.', 'err');
+      return;
+    }
+    if (!confirm('Supprimer le cadre horaire global ?')) return;
+    try {
+      await firebase.database().ref(REF_HORAIRES_GLOBAL).remove();
+      renderScheduleTable(elGlobalScheduleBody, defaultScheduleTemplate());
+      setGlobalScheduleStatus('Cadre global supprimé (accès continu).', 'ok');
+    } catch (e) {
+      console.error(e);
+      setGlobalScheduleStatus('Erreur lors de la suppression globale.', 'err');
+    }
+  }
+
+  async function loadCodeSchedule() {
+    const code = scheduleTargetCode();
+    if (!/^[A-Z0-9]{4,16}$/.test(code)) {
+      setCodeScheduleStatus('Saisis un code ACC valide (4 à 16 caractères).', 'err');
+      return;
+    }
+    setScheduleCodeValue(code);
+    try {
+      const snap = await firebase.database().ref(`${REF_AUTORISATIONS}/${code}`).once('value');
+      const auth = snap.val();
+      if (!auth) {
+        setCodeScheduleStatus(`Code ${code} introuvable dans les autorisations.`, 'err');
+        return;
+      }
+      if (auth.horaires) {
+        renderScheduleTable(elCodeScheduleBody, normalizeSchedule(auth.horaires));
+        let msg = `Exception horaire chargée pour ${code}.`;
+        if (auth.bypass_schedule === true) msg += ' bypass_schedule actif.';
+        setCodeScheduleStatus(msg, 'ok');
+      } else {
+        renderScheduleTable(elCodeScheduleBody, defaultScheduleTemplate());
+        let msg = `Aucune exception pour ${code} (règle globale appliquée).`;
+        if (auth.bypass_schedule === true) msg += ' bypass_schedule actif.';
+        setCodeScheduleStatus(msg, '');
+      }
+    } catch (e) {
+      console.error(e);
+      setCodeScheduleStatus('Erreur lors du chargement de l’exception code.', 'err');
+    }
+  }
+
+  async function saveCodeSchedule() {
+    if (!unlocked) {
+      setCodeScheduleStatus('Déverrouille le cockpit pour enregistrer.', 'err');
+      return;
+    }
+    const code = scheduleTargetCode();
+    if (!/^[A-Z0-9]{4,16}$/.test(code)) {
+      setCodeScheduleStatus('Saisis un code ACC valide (4 à 16 caractères).', 'err');
+      return;
+    }
+    setScheduleCodeValue(code);
+    const horaires = collectScheduleTable(elCodeScheduleBody);
+    const validationError = validateSchedule(horaires);
+    if (validationError) {
+      setCodeScheduleStatus(validationError, 'err');
+      return;
+    }
+    try {
+      const snap = await firebase.database().ref(`${REF_AUTORISATIONS}/${code}`).once('value');
+      if (!snap.exists()) {
+        setCodeScheduleStatus(`Code ${code} introuvable.`, 'err');
+        return;
+      }
+      await firebase
+        .database()
+        .ref(`${REF_AUTORISATIONS}/${code}`)
+        .update({ horaires, updated_at: Date.now() });
+      setCodeScheduleStatus(`Exception enregistrée pour ${code}.`, 'ok');
+    } catch (e) {
+      console.error(e);
+      setCodeScheduleStatus('Erreur lors de l’enregistrement du code.', 'err');
+    }
+  }
+
+  async function clearCodeSchedule() {
+    if (!unlocked) {
+      setCodeScheduleStatus('Déverrouille le cockpit pour supprimer.', 'err');
+      return;
+    }
+    const code = scheduleTargetCode();
+    if (!/^[A-Z0-9]{4,16}$/.test(code)) {
+      setCodeScheduleStatus('Saisis un code ACC valide (4 à 16 caractères).', 'err');
+      return;
+    }
+    if (!confirm(`Supprimer l'exception horaire pour ${code} ?`)) return;
+    try {
+      await firebase
+        .database()
+        .ref(`${REF_AUTORISATIONS}/${code}`)
+        .update({ horaires: null, updated_at: Date.now() });
+      renderScheduleTable(elCodeScheduleBody, defaultScheduleTemplate());
+      setCodeScheduleStatus(`Exception supprimée pour ${code}.`, 'ok');
+    } catch (e) {
+      console.error(e);
+      setCodeScheduleStatus('Erreur lors de la suppression du code.', 'err');
+    }
+  }
+
+  function useSelectedCodeForSchedule() {
+    if (!selectedAccCode) {
+      setCodeScheduleStatus('Sélectionne d’abord un élève dans la liste.', 'err');
+      return;
+    }
+    setScheduleCodeValue(selectedAccCode);
+    loadCodeSchedule();
+  }
+
   function setSpecialStatus(el, label, allowed) {
     if (!el) return;
     el.textContent = `${label} ${allowed ? 'autorisé' : 'non autorisé'}`;
@@ -416,6 +700,7 @@
     if (btnSpecialProfpse) btnSpecialProfpse.disabled = !unlocked;
     if (btnSpecialInvite) btnSpecialInvite.disabled = !unlocked;
     renderSpecialCodesManager();
+    syncScheduleWriteState();
   }
 
   function renderSpecialCodesManager() {
@@ -703,6 +988,7 @@
     const data = getEleveData(code);
 
     selectedAccCode = code;
+    setScheduleCodeValue(code);
 
     if (elDetailSection) elDetailSection.style.display = 'block';
     if (elNomEleve) {
@@ -898,6 +1184,43 @@
       btnCopyExport.addEventListener('click', copyExport);
     }
 
+    if (btnLoadGlobalSchedule) {
+      btnLoadGlobalSchedule.addEventListener('click', loadGlobalSchedule);
+    }
+
+    if (btnSaveGlobalSchedule) {
+      btnSaveGlobalSchedule.addEventListener('click', saveGlobalSchedule);
+    }
+
+    if (btnClearGlobalSchedule) {
+      btnClearGlobalSchedule.addEventListener('click', clearGlobalSchedule);
+    }
+
+    if (elScheduleCode) {
+      elScheduleCode.addEventListener('input', (e) => {
+        e.target.value = normalizeCode(e.target.value).slice(0, 16);
+      });
+      elScheduleCode.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') loadCodeSchedule();
+      });
+    }
+
+    if (btnUseSelectedCode) {
+      btnUseSelectedCode.addEventListener('click', useSelectedCodeForSchedule);
+    }
+
+    if (btnLoadCodeSchedule) {
+      btnLoadCodeSchedule.addEventListener('click', loadCodeSchedule);
+    }
+
+    if (btnSaveCodeSchedule) {
+      btnSaveCodeSchedule.addEventListener('click', saveCodeSchedule);
+    }
+
+    if (btnClearCodeSchedule) {
+      btnClearCodeSchedule.addEventListener('click', clearCodeSchedule);
+    }
+
     if (btnImportRoster) {
       btnImportRoster.addEventListener('click', () => {
         if (!elRosterFile) return;
@@ -982,6 +1305,11 @@
     loadLocalRoster();
     renderFilters();
     renderExportButtons();
+    renderScheduleTable(elGlobalScheduleBody, defaultScheduleTemplate());
+    renderScheduleTable(elCodeScheduleBody, defaultScheduleTemplate());
+    setGlobalScheduleStatus('Chargement du cadre global…', '');
+    setCodeScheduleStatus('Saisis un code ACC puis charge son exception.', '');
+    syncScheduleWriteState();
     renderListeEleves();
     renderSpecialStatuses();
     setSpecialCreateStatus('Crée un code démo puis active/suspend selon besoin.', '');
@@ -997,6 +1325,7 @@
     subscribeAutorisations();
     subscribeEleves();
     subscribeValidations();
+    loadGlobalSchedule();
     initQrScanner();
   }
 
