@@ -527,12 +527,24 @@
     if (!rec || rec.flux !== 1 || !rec.eleve || !rec.objectif) return;
 
     const eleveLoginCode = safeUpper(rec.eleve);
-    const dataCode = resolveEleveDataCode(eleveLoginCode);
-    const goalPath = `${REF_ELEVES}/${dataCode}/objectifs/${rec.objectif}`;
-    const goalRef = firebase.database().ref(goalPath);
-    const snap = await goalRef.once('value');
+    const candidateCodes = [resolveEleveDataCode(eleveLoginCode), eleveLoginCode]
+      .map(safeUpper)
+      .filter(Boolean)
+      .filter((code, idx, arr) => arr.indexOf(code) === idx);
 
-    if (!snap.exists()) {
+    let goalRef = null;
+    let snap = null;
+    for (const code of candidateCodes) {
+      const ref = firebase.database().ref(`${REF_ELEVES}/${code}/objectifs/${rec.objectif}`);
+      const currentSnap = await ref.once('value');
+      if (currentSnap.exists()) {
+        goalRef = ref;
+        snap = currentSnap;
+        break;
+      }
+    }
+
+    if (!goalRef || !snap || !snap.exists()) {
       setUnlockStatus(`Scan enregistré, mais objectif introuvable (${eleveLoginCode} / ${rec.objectif}).`, false);
       return;
     }
@@ -1167,6 +1179,10 @@
     const el = document.getElementById(containerId);
     if (!el) return;
 
+    if (!window.isSecureContext && !/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
+      setUnlockStatus('Le scan QR nécessite HTTPS (caméra bloquée en HTTP).', false);
+    }
+
     if (typeof Html5QrcodeScanner === 'undefined') {
       console.warn('Html5QrcodeScanner indisponible');
       return;
@@ -1176,6 +1192,7 @@
       fps: 10,
       qrbox: 220,
     });
+    let cameraErrorNotified = false;
 
     scanner.render(
       async (decodedText) => {
@@ -1207,15 +1224,50 @@
             setUnlockStatus('QR invalide : code élève manquant.', false);
             return;
           }
-          await firebase.database().ref(REF_VALIDATIONS).push(rec);
-          await confirmAndMarkGoalFromQr(rec);
+          if (rec.flux === 1 && !rec.objectif) {
+            setUnlockStatus('QR objectif invalide : identifiant objectif manquant.', false);
+            return;
+          }
+
+          try {
+            await firebase.database().ref(REF_VALIDATIONS).push(rec);
+          } catch (writeErr) {
+            const message = String(writeErr && writeErr.message ? writeErr.message : '');
+            console.error('Erreur Firebase (scan QR)', writeErr);
+            if (/permission_denied/i.test(message)) {
+              setUnlockStatus('Scan lu, mais refusé par Firebase (permissions).', false);
+            } else {
+              setUnlockStatus('Scan lu, mais enregistrement Firebase impossible (réseau/serveur).', false);
+            }
+            return;
+          }
+
+          if (rec.flux === 1) {
+            await confirmAndMarkGoalFromQr(rec);
+          } else {
+            setUnlockStatus(`Scan enregistré (${rec.eleve} · flux ${rec.flux}).`, true);
+          }
         } catch (e) {
-          console.error('QR invalide', e);
-          setUnlockStatus('QR invalide (format JSON attendu).', false);
+          console.error('Erreur de traitement QR', e);
+          if (e instanceof SyntaxError) {
+            setUnlockStatus('QR invalide (format JSON attendu).', false);
+          } else {
+            setUnlockStatus('Erreur pendant le traitement du scan.', false);
+          }
         }
       },
-      () => {
-        // Ignore errors while scanning continuously.
+      (scanErr) => {
+        if (cameraErrorNotified) return;
+        const msg = String(scanErr || '').toLowerCase();
+        if (msg.includes('notallowed') || msg.includes('permission') || msg.includes('denied')) {
+          setUnlockStatus('Caméra refusée : autorise l’accès caméra pour scanner les QR.', false);
+          cameraErrorNotified = true;
+          return;
+        }
+        if (msg.includes('secure') || msg.includes('https')) {
+          setUnlockStatus('Le scan QR nécessite HTTPS.', false);
+          cameraErrorNotified = true;
+        }
       }
     );
   }
