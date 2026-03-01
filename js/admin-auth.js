@@ -10,8 +10,8 @@
   const REF_AUTORISATIONS = `${DB_ROOT}/autorisations`;
   const REF_VALIDATIONS = `${DB_ROOT}/validations`;
 
-  // Obfuscation simple du code enseignant ("CPS2026")
-  const VALIDATION_CODE_B64 = 'Q1BTMjAyNg==';
+  // Codes de déverrouillage obfusqués (CPS2026, PROFPSE, INVITE)
+  const UNLOCK_CODES_B64 = ['Q1BTMjAyNg==', 'UFJPRlBTRQ==', 'SU5WSVRF'];
   const SESSION_UNLOCK_KEY = 'cockpit_teacher_unlock';
   const ROSTER_LOCAL_KEY = 'cockpit_private_roster_v1';
 
@@ -59,6 +59,13 @@
 
   function safeUpper(v) {
     return String(v || '').trim().toUpperCase();
+  }
+
+  function normalizeCode(v) {
+    return String(v || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .trim();
   }
 
   function escapeHtml(v) {
@@ -358,22 +365,26 @@
     elUnlockStatus.classList.add(ok ? 'ok' : 'err');
   }
 
-  function decodedValidationCode() {
-    try {
-      return atob(VALIDATION_CODE_B64);
-    } catch (_e) {
-      return '';
-    }
+  function decodedUnlockCodes() {
+    return UNLOCK_CODES_B64
+      .map((v) => {
+        try {
+          return normalizeCode(atob(v));
+        } catch (_e) {
+          return '';
+        }
+      })
+      .filter(Boolean);
   }
 
   function unlockCockpit() {
-    const expected = decodedValidationCode();
-    const entered = safeUpper(elTeacherCode ? elTeacherCode.value : '');
+    const entered = normalizeCode(elTeacherCode ? elTeacherCode.value : '');
+    const expectedCodes = decodedUnlockCodes();
     if (!entered) {
-      setUnlockStatus('Saisis le code enseignant.', false);
+      setUnlockStatus('Saisis le code enseignant (PROFPSE, INVITE ou CPS2026).', false);
       return;
     }
-    if (entered !== safeUpper(expected)) {
+    if (!expectedCodes.includes(entered)) {
       setUnlockStatus('Code enseignant incorrect.', false);
       if (elTeacherCode) elTeacherCode.value = '';
       return;
@@ -619,7 +630,7 @@
         if (e.key === 'Enter') unlockCockpit();
       });
       elTeacherCode.addEventListener('input', (e) => {
-        e.target.value = safeUpper(e.target.value).slice(0, 16);
+        e.target.value = normalizeCode(e.target.value).slice(0, 16);
       });
     }
 
