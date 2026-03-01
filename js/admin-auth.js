@@ -10,6 +10,8 @@
   const REF_AUTORISATIONS = `${DB_ROOT}/autorisations`;
   const REF_VALIDATIONS = `${DB_ROOT}/validations`;
   const REF_HORAIRES_GLOBAL = `${DB_ROOT}/config/horaires_global`;
+  const REF_CUSTOM_GLOBAL = `${DB_ROOT}/bibliotheque_custom/global`;
+  const REF_CUSTOM_PAR_ELEVE = `${DB_ROOT}/bibliotheque_custom/par_eleve`;
 
   // Codes de déverrouillage obfusqués (CPS2026, PROFPSE, INVITE)
   const UNLOCK_CODES_B64 = ['Q1BTMjAyNg==', 'UFJPRlBTRQ==', 'SU5WSVRF'];
@@ -57,6 +59,20 @@
   const btnSaveCodeSchedule = document.getElementById('btn-save-code-schedule');
   const btnClearCodeSchedule = document.getElementById('btn-clear-code-schedule');
   const elCodeScheduleStatus = document.getElementById('status-code-schedule');
+  const elCustomGlobalText = document.getElementById('custom-global-text');
+  const elCustomGlobalCompetence = document.getElementById('custom-global-competence');
+  const elCustomGlobalContext = document.getElementById('custom-global-context');
+  const btnCustomGlobalAdd = document.getElementById('btn-custom-global-add');
+  const elCustomGlobalStatus = document.getElementById('status-custom-global');
+  const elCustomGlobalList = document.getElementById('custom-global-list');
+  const elCustomEleveSelect = document.getElementById('custom-eleve-select');
+  const elCustomEleveBadge = document.getElementById('custom-eleve-badge');
+  const elCustomEleveText = document.getElementById('custom-eleve-text');
+  const elCustomEleveCompetence = document.getElementById('custom-eleve-competence');
+  const elCustomEleveContext = document.getElementById('custom-eleve-context');
+  const btnCustomEleveAdd = document.getElementById('btn-custom-eleve-add');
+  const elCustomEleveStatus = document.getElementById('status-custom-eleve');
+  const elCustomEleveList = document.getElementById('custom-eleve-list');
 
   if (typeof firebase === 'undefined' || !firebase.apps?.length) {
     console.error('Firebase non initialise');
@@ -79,11 +95,33 @@
   let specialDefaultsReady = false;
   let lastScanText = '';
   let lastScanAt = 0;
+  let customGlobalCache = {};
+  let customEleveCache = {};
+  let customEleveSubPath = '';
+  let customEleveSubHandler = null;
 
   const SPECIAL_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const SPECIAL_CODE_DIGITS = '23456789';
   const RESERVED_SPECIAL_CODES = new Set(['PROFPSE', 'INVITE']);
   const SCAN_DUPLICATE_COOLDOWN_MS = 3000;
+  const CUSTOM_CONTEXTS = ['Scolaire', 'PFMP', 'Recherche', 'Autre'];
+  const CPS_COMPETENCES = [
+    { code: 'C1.1', nom: 'Accroître sa connaissance de soi' },
+    { code: 'C1.2', nom: 'Penser de façon critique' },
+    { code: 'C1.3', nom: 'Connaître ses valeurs et buts' },
+    { code: 'C1.4', nom: 'Prendre des décisions constructives' },
+    { code: 'C1.5', nom: "S'auto-évaluer positivement" },
+    { code: 'C1.6', nom: 'Renforcer sa pleine attention' },
+    { code: 'E1.1', nom: 'Comprendre les émotions' },
+    { code: 'E1.2', nom: 'Identifier ses émotions' },
+    { code: 'E2.2', nom: 'Exprimer ses émotions de façon constructive' },
+    { code: 'E2.3', nom: 'Gérer son stress' },
+    { code: 'S1.1', nom: 'Communiquer de façon efficace' },
+    { code: 'S1.2', nom: 'Communiquer de façon empathique' },
+    { code: 'S1.3', nom: 'Développer des liens prosociaux' },
+    { code: 'S2.1', nom: "S'affirmer et résister à la pression" },
+    { code: 'S2.2', nom: 'Résoudre les conflits' },
+  ];
   const SCHEDULE_DAYS = [
     { key: 'lundi', label: 'Lundi' },
     { key: 'mardi', label: 'Mardi' },
@@ -136,6 +174,332 @@
 
   function setCodeScheduleStatus(message, type) {
     setStatus(elCodeScheduleStatus, message, type);
+  }
+
+  function setCustomStatus(el, message, type) {
+    setStatus(el, message, type);
+  }
+
+  function normalizeContext(v) {
+    const raw = String(v || '').trim().toLowerCase();
+    if (raw === 'scolaire') return 'Scolaire';
+    if (raw === 'pfmp') return 'PFMP';
+    if (raw === 'recherche') return 'Recherche';
+    return 'Autre';
+  }
+
+  function normalizeCompetenceCode(v) {
+    return String(v || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9.]/g, '')
+      .trim();
+  }
+
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function normalizeCustomText(v) {
+    return String(v || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function findCompetence(code) {
+    const c = normalizeCompetenceCode(code);
+    return CPS_COMPETENCES.find((it) => it.code === c) || null;
+  }
+
+  function sortByClassAndCode(a, b) {
+    const classCmp = safeUpper(a.classe).localeCompare(safeUpper(b.classe), 'fr');
+    if (classCmp !== 0) return classCmp;
+    return safeUpper(a.accCode).localeCompare(safeUpper(b.accCode), 'fr');
+  }
+
+  function populateCompetenceSelect(el) {
+    if (!el) return;
+    const prev = normalizeCompetenceCode(el.value || CPS_COMPETENCES[0]?.code || '');
+    el.innerHTML = '';
+    CPS_COMPETENCES.forEach((comp) => {
+      const opt = document.createElement('option');
+      opt.value = comp.code;
+      opt.textContent = `${comp.code} — ${comp.nom}`;
+      opt.dataset.nom = comp.nom;
+      el.appendChild(opt);
+    });
+    if (Array.from(el.options).some((o) => o.value === prev)) {
+      el.value = prev;
+    } else if (el.options.length) {
+      el.selectedIndex = 0;
+    }
+  }
+
+  function selectedCustomEleveCode() {
+    return safeUpper(elCustomEleveSelect ? elCustomEleveSelect.value : '');
+  }
+
+  function renderCustomEleveOptions() {
+    if (!elCustomEleveSelect) return;
+    const prev = selectedCustomEleveCode();
+    elCustomEleveSelect.innerHTML = '';
+    const sorted = bdd.slice().sort(sortByClassAndCode);
+    sorted.forEach((row) => {
+      const code = safeUpper(row.accCode);
+      if (!code) return;
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = `${code} · ${row.classe}`;
+      elCustomEleveSelect.appendChild(opt);
+    });
+    if (!elCustomEleveSelect.options.length) {
+      if (elCustomEleveBadge) elCustomEleveBadge.textContent = 'Code ACC : —';
+      return;
+    }
+    if (prev && Array.from(elCustomEleveSelect.options).some((o) => safeUpper(o.value) === prev)) {
+      elCustomEleveSelect.value = prev;
+    } else {
+      elCustomEleveSelect.selectedIndex = 0;
+    }
+    refreshCustomEleveSelection();
+  }
+
+  function refreshCustomEleveBadge(code) {
+    if (!elCustomEleveBadge) return;
+    const c = safeUpper(code);
+    elCustomEleveBadge.textContent = c ? `Code ACC : ${c}` : 'Code ACC : —';
+  }
+
+  function customRowsFromObject(obj) {
+    return Object.keys(obj || {})
+      .map((id) => ({ id, data: obj[id] || {} }))
+      .sort((a, b) => {
+        const ta = Number(a.data.created_at || a.data.updated_at || 0);
+        const tb = Number(b.data.created_at || b.data.updated_at || 0);
+        return tb - ta;
+      });
+  }
+
+  function customEntryRef(scope, id, accCode) {
+    if (scope === 'global') return firebase.database().ref(`${REF_CUSTOM_GLOBAL}/${id}`);
+    return firebase.database().ref(`${REF_CUSTOM_PAR_ELEVE}/${safeUpper(accCode)}/${id}`);
+  }
+
+  async function addCustomEntry(scope) {
+    if (!unlocked) {
+      setCustomStatus(scope === 'global' ? elCustomGlobalStatus : elCustomEleveStatus, 'Déverrouille le cockpit pour enregistrer.', 'err');
+      return;
+    }
+
+    const isGlobal = scope === 'global';
+    const textEl = isGlobal ? elCustomGlobalText : elCustomEleveText;
+    const compEl = isGlobal ? elCustomGlobalCompetence : elCustomEleveCompetence;
+    const ctxEl = isGlobal ? elCustomGlobalContext : elCustomEleveContext;
+    const statusEl = isGlobal ? elCustomGlobalStatus : elCustomEleveStatus;
+
+    const texte = normalizeCustomText(textEl ? textEl.value : '');
+    if (!texte) {
+      setCustomStatus(statusEl, 'Le texte du savoir-faire est obligatoire.', 'err');
+      return;
+    }
+    const compCode = normalizeCompetenceCode(compEl ? compEl.value : '');
+    const comp = findCompetence(compCode);
+    if (!comp) {
+      setCustomStatus(statusEl, 'Compétence invalide.', 'err');
+      return;
+    }
+    const contexte = normalizeContext(ctxEl ? ctxEl.value : '');
+    const now = Date.now();
+    const payload = {
+      texte,
+      competence_code: comp.code,
+      competence_nom: comp.nom,
+      contexte,
+      actif: true,
+      cree_par: 'enseignant',
+      date_creation: todayISO(),
+      created_at: now,
+      updated_at: now,
+    };
+
+    try {
+      if (isGlobal) {
+        await firebase.database().ref(REF_CUSTOM_GLOBAL).push(payload);
+      } else {
+        const accCode = selectedCustomEleveCode();
+        if (!/^[A-Z0-9]{4,16}$/.test(accCode)) {
+          setCustomStatus(statusEl, 'Sélectionne un code élève valide.', 'err');
+          return;
+        }
+        await firebase.database().ref(`${REF_CUSTOM_PAR_ELEVE}/${accCode}`).push(payload);
+      }
+      if (textEl) textEl.value = '';
+      setCustomStatus(statusEl, 'Savoir-faire personnalisé enregistré.', 'ok');
+    } catch (e) {
+      console.error(e);
+      setCustomStatus(statusEl, 'Erreur lors de l’enregistrement Firebase.', 'err');
+    }
+  }
+
+  async function toggleCustomEntry(scope, id, nextState, accCode, statusEl) {
+    if (!unlocked) {
+      setCustomStatus(statusEl, 'Déverrouille le cockpit pour modifier.', 'err');
+      return;
+    }
+    try {
+      await customEntryRef(scope, id, accCode).update({
+        actif: !!nextState,
+        updated_at: Date.now(),
+      });
+      setCustomStatus(statusEl, `Entrée ${nextState ? 'activée' : 'désactivée'}.`, 'ok');
+    } catch (e) {
+      console.error(e);
+      setCustomStatus(statusEl, 'Erreur lors de la mise à jour.', 'err');
+    }
+  }
+
+  async function saveCustomText(scope, id, textValue, accCode, statusEl) {
+    if (!unlocked) {
+      setCustomStatus(statusEl, 'Déverrouille le cockpit pour modifier.', 'err');
+      return false;
+    }
+    const texte = normalizeCustomText(textValue);
+    if (!texte) {
+      setCustomStatus(statusEl, 'Le texte ne peut pas être vide.', 'err');
+      return false;
+    }
+    try {
+      await customEntryRef(scope, id, accCode).update({
+        texte,
+        updated_at: Date.now(),
+      });
+      setCustomStatus(statusEl, 'Texte mis à jour.', 'ok');
+      return true;
+    } catch (e) {
+      console.error(e);
+      setCustomStatus(statusEl, 'Erreur lors de la mise à jour du texte.', 'err');
+      return false;
+    }
+  }
+
+  function renderCustomRows(tbody, rows, scope, accCode, statusEl) {
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="5" class="muted">Aucun savoir-faire personnalisé.</td>';
+      tbody.appendChild(tr);
+      return;
+    }
+
+    rows.forEach((entry) => {
+      const id = entry.id;
+      const data = entry.data || {};
+      const texte = String(data.texte || '').trim();
+      const code = normalizeCompetenceCode(data.competence_code || '');
+      const nom = String(data.competence_nom || '').trim();
+      const contexte = normalizeContext(data.contexte || '');
+      const actif = data.actif === true;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><textarea class="input custom-text-inline" rows="3" disabled>${escapeHtml(texte)}</textarea></td>
+        <td><strong>${escapeHtml(code || '—')}</strong><br><span class="muted">${escapeHtml(nom || '—')}</span></td>
+        <td>${escapeHtml(contexte)}</td>
+        <td><span class="badge ${actif ? 'ok' : 'no'}">${actif ? 'Actif' : 'Inactif'}</span></td>
+        <td>
+          <div class="custom-actions">
+            <button class="btn small" data-action="toggle" ${unlocked ? '' : 'disabled'}>${actif ? '🔴 Désactiver' : '🟢 Activer'}</button>
+            <button class="btn small" data-action="edit" ${unlocked ? '' : 'disabled'}>✏️ Modifier</button>
+            <button class="btn small hidden" data-action="cancel" ${unlocked ? '' : 'disabled'}>Annuler</button>
+          </div>
+        </td>
+      `;
+
+      const textArea = tr.querySelector('.custom-text-inline');
+      const btnToggle = tr.querySelector('[data-action="toggle"]');
+      const btnEdit = tr.querySelector('[data-action="edit"]');
+      const btnCancel = tr.querySelector('[data-action="cancel"]');
+      const originalText = texte;
+
+      if (btnToggle) {
+        btnToggle.addEventListener('click', () => {
+          toggleCustomEntry(scope, id, !actif, accCode, statusEl);
+        });
+      }
+
+      if (btnEdit && textArea) {
+        btnEdit.addEventListener('click', async () => {
+          if (textArea.disabled) {
+            textArea.disabled = false;
+            textArea.focus();
+            textArea.selectionStart = textArea.value.length;
+            btnEdit.textContent = '💾 Enregistrer';
+            btnCancel?.classList.remove('hidden');
+            return;
+          }
+          const saved = await saveCustomText(scope, id, textArea.value, accCode, statusEl);
+          if (saved) {
+            textArea.disabled = true;
+            btnEdit.textContent = '✏️ Modifier';
+            btnCancel?.classList.add('hidden');
+          }
+        });
+      }
+
+      if (btnCancel && textArea) {
+        btnCancel.addEventListener('click', () => {
+          textArea.value = originalText;
+          textArea.disabled = true;
+          btnCancel.classList.add('hidden');
+          if (btnEdit) btnEdit.textContent = '✏️ Modifier';
+        });
+      }
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderCustomGlobalList() {
+    renderCustomRows(elCustomGlobalList, customRowsFromObject(customGlobalCache), 'global', '', elCustomGlobalStatus);
+  }
+
+  function renderCustomEleveList() {
+    renderCustomRows(elCustomEleveList, customRowsFromObject(customEleveCache), 'eleve', selectedCustomEleveCode(), elCustomEleveStatus);
+  }
+
+  function unsubscribeCustomEleve() {
+    if (customEleveSubPath && customEleveSubHandler) {
+      firebase.database().ref(customEleveSubPath).off('value', customEleveSubHandler);
+    }
+    customEleveSubPath = '';
+    customEleveSubHandler = null;
+  }
+
+  function subscribeCustomEleve(accCode) {
+    const code = safeUpper(accCode);
+    unsubscribeCustomEleve();
+    if (!/^[A-Z0-9]{4,16}$/.test(code)) {
+      customEleveCache = {};
+      renderCustomEleveList();
+      return;
+    }
+    const path = `${REF_CUSTOM_PAR_ELEVE}/${code}`;
+    customEleveSubPath = path;
+    customEleveSubHandler = (snap) => {
+      customEleveCache = snap.val() || {};
+      renderCustomEleveList();
+    };
+    firebase.database().ref(path).on('value', customEleveSubHandler);
+  }
+
+  function refreshCustomEleveSelection() {
+    const code = selectedCustomEleveCode();
+    refreshCustomEleveBadge(code);
+    subscribeCustomEleve(code);
+  }
+
+  function subscribeCustomGlobal() {
+    firebase.database().ref(REF_CUSTOM_GLOBAL).on('value', (snap) => {
+      customGlobalCache = snap.val() || {};
+      renderCustomGlobalList();
+    });
   }
 
   function normalizeTime(v, fallback) {
@@ -223,6 +587,11 @@
     if (btnClearGlobalSchedule) btnClearGlobalSchedule.disabled = !unlocked;
     if (btnSaveCodeSchedule) btnSaveCodeSchedule.disabled = !unlocked;
     if (btnClearCodeSchedule) btnClearCodeSchedule.disabled = !unlocked;
+  }
+
+  function syncCustomWriteState() {
+    if (btnCustomGlobalAdd) btnCustomGlobalAdd.disabled = !unlocked;
+    if (btnCustomEleveAdd) btnCustomEleveAdd.disabled = !unlocked;
   }
 
   function isStudentCode(code) {
@@ -769,6 +1138,9 @@
     if (btnSpecialInvite) btnSpecialInvite.disabled = !unlocked;
     renderSpecialCodesManager();
     syncScheduleWriteState();
+    syncCustomWriteState();
+    renderCustomGlobalList();
+    renderCustomEleveList();
   }
 
   function renderSpecialCodesManager() {
@@ -1057,6 +1429,10 @@
 
     selectedAccCode = code;
     setScheduleCodeValue(code);
+    if (elCustomEleveSelect && Array.from(elCustomEleveSelect.options).some((o) => safeUpper(o.value) === code)) {
+      elCustomEleveSelect.value = code;
+      refreshCustomEleveSelection();
+    }
 
     if (elDetailSection) elDetailSection.style.display = 'block';
     if (elNomEleve) {
@@ -1394,6 +1770,18 @@
       btnCreateSpecial.addEventListener('click', createSpecialCode);
     }
 
+    if (btnCustomGlobalAdd) {
+      btnCustomGlobalAdd.addEventListener('click', () => addCustomEntry('global'));
+    }
+
+    if (btnCustomEleveAdd) {
+      btnCustomEleveAdd.addEventListener('click', () => addCustomEntry('eleve'));
+    }
+
+    if (elCustomEleveSelect) {
+      elCustomEleveSelect.addEventListener('change', refreshCustomEleveSelection);
+    }
+
     if (btnSpecialProfpse) {
       btnSpecialProfpse.addEventListener('click', async () => {
         try {
@@ -1420,15 +1808,23 @@
   function boot() {
     loadLocalRoster();
     renderFilters();
+    populateCompetenceSelect(elCustomGlobalCompetence);
+    populateCompetenceSelect(elCustomEleveCompetence);
+    renderCustomEleveOptions();
     renderExportButtons();
     renderScheduleTable(elGlobalScheduleBody, defaultScheduleTemplate());
     renderScheduleTable(elCodeScheduleBody, defaultScheduleTemplate());
     setGlobalScheduleStatus('Chargement du cadre global…', '');
     setCodeScheduleStatus('Saisis un code ACC puis charge son exception.', '');
     syncScheduleWriteState();
+    syncCustomWriteState();
     renderListeEleves();
     renderSpecialStatuses();
+    renderCustomGlobalList();
+    renderCustomEleveList();
     setSpecialCreateStatus('Crée un code démo puis active/suspend selon besoin.', '');
+    setCustomStatus(elCustomGlobalStatus, 'Saisis un savoir-faire puis ajoute-le pour tous.', '');
+    setCustomStatus(elCustomEleveStatus, 'Sélectionne un élève puis ajoute un savoir-faire ciblé.', '');
     bindEvents();
 
     if (unlocked) {
@@ -1441,6 +1837,8 @@
     subscribeAutorisations();
     subscribeEleves();
     subscribeValidations();
+    subscribeCustomGlobal();
+    refreshCustomEleveSelection();
     loadGlobalSchedule();
     initQrScanner();
   }
