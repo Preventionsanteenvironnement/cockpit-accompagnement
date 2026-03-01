@@ -8,7 +8,7 @@
       "autorisations": {
         "$userCode": {
           ".read": true,
-          ".write": "newData.hasChildren(['autorise']) && newData.child('autorise').isBoolean() && (!newData.child('updated_at').exists() || newData.child('updated_at').isNumber()) && (!newData.child('horaires').exists() || newData.child('horaires').isMap()) && (!newData.child('userCode').exists() || newData.child('userCode').isString())"
+          ".write": "newData.hasChildren(['autorise']) && newData.child('autorise').isBoolean() && (!newData.child('updated_at').exists() || newData.child('updated_at').isNumber()) && (!newData.child('horaires').exists() || newData.child('horaires').isMap()) && (!newData.child('userCode').exists() || newData.child('userCode').isString()) && (!newData.child('special').exists() || newData.child('special').isBoolean()) && (!newData.child('label').exists() || newData.child('label').isString()) && (!newData.child('bypass_schedule').exists() || newData.child('bypass_schedule').isBoolean())"
         }
       },
       "eleves": {
