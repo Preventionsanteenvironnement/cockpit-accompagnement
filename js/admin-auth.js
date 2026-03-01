@@ -38,6 +38,12 @@
   const btnImportRoster = document.getElementById('btn-import-roster');
   const btnClearRoster = document.getElementById('btn-clear-roster');
   const elRosterStatus = document.getElementById('roster-status');
+  const elSpecialLabel = document.getElementById('special-label');
+  const elSpecialCode = document.getElementById('special-code');
+  const btnGenerateSpecial = document.getElementById('btn-generate-special');
+  const btnCreateSpecial = document.getElementById('btn-create-special');
+  const elSpecialCodesList = document.getElementById('special-codes-list');
+  const elSpecialCreateStatus = document.getElementById('special-create-status');
 
   if (typeof firebase === 'undefined' || !firebase.apps?.length) {
     console.error('Firebase non initialise');
@@ -56,6 +62,12 @@
   let localRosterByAcc = {}; // { [accCode]: { classe, prenom, nom } }
   let selectedAccCode = null;
   let unlocked = sessionStorage.getItem(SESSION_UNLOCK_KEY) === '1';
+  let ensuringSpecialDefaults = false;
+  let specialDefaultsReady = false;
+
+  const SPECIAL_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const SPECIAL_CODE_DIGITS = '23456789';
+  const RESERVED_SPECIAL_CODES = new Set(['PROFPSE', 'INVITE']);
 
   function safeUpper(v) {
     return String(v || '').trim().toUpperCase();
@@ -75,6 +87,53 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function setSpecialCreateStatus(message, type) {
+    if (!elSpecialCreateStatus) return;
+    elSpecialCreateStatus.textContent = message || '';
+    elSpecialCreateStatus.classList.remove('ok', 'err');
+    if (type === 'ok') elSpecialCreateStatus.classList.add('ok');
+    if (type === 'err') elSpecialCreateStatus.classList.add('err');
+  }
+
+  function isStudentCode(code) {
+    return byAcc.has(safeUpper(code));
+  }
+
+  function isSpecialEntry(code, data) {
+    const c = safeUpper(code);
+    if (RESERVED_SPECIAL_CODES.has(c)) return true;
+    return !!(data && data.special === true);
+  }
+
+  function getSpecialLabel(code, data) {
+    if (data && data.label) return String(data.label);
+    if (code === 'PROFPSE') return 'Accès personnel enseignant';
+    if (code === 'INVITE') return 'Accès invité';
+    return 'Code spécial';
+  }
+
+  function generateSpecialCodeCandidate(length = 6) {
+    let code = '';
+    for (let i = 0; i < length; i += 1) {
+      if (i % 2 === 0) {
+        code += SPECIAL_CODE_LETTERS[Math.floor(Math.random() * SPECIAL_CODE_LETTERS.length)];
+      } else {
+        code += SPECIAL_CODE_DIGITS[Math.floor(Math.random() * SPECIAL_CODE_DIGITS.length)];
+      }
+    }
+    return code;
+  }
+
+  function nextAvailableSpecialCode() {
+    for (let i = 0; i < 800; i += 1) {
+      const candidate = generateSpecialCodeCandidate(6);
+      if (isStudentCode(candidate)) continue;
+      if (autorisationsCache[candidate]) continue;
+      return candidate;
+    }
+    return '';
   }
 
   function normalizeHeader(v) {
@@ -356,6 +415,179 @@
     setSpecialStatus(elStatusSpecialInvite, 'INVITE :', getAuthState('INVITE'));
     if (btnSpecialProfpse) btnSpecialProfpse.disabled = !unlocked;
     if (btnSpecialInvite) btnSpecialInvite.disabled = !unlocked;
+    renderSpecialCodesManager();
+  }
+
+  function renderSpecialCodesManager() {
+    if (!elSpecialCodesList) return;
+    elSpecialCodesList.innerHTML = '';
+    if (btnGenerateSpecial) btnGenerateSpecial.disabled = !unlocked;
+    if (btnCreateSpecial) btnCreateSpecial.disabled = !unlocked;
+    if (elSpecialLabel) elSpecialLabel.disabled = !unlocked;
+    if (elSpecialCode) elSpecialCode.disabled = !unlocked;
+
+    const entries = Object.keys(autorisationsCache)
+      .filter((code) => {
+        const upper = safeUpper(code);
+        if (isStudentCode(upper)) return false;
+        return isSpecialEntry(upper, autorisationsCache[code]);
+      })
+      .sort()
+      .map((code) => ({ code, data: autorisationsCache[code] || {} }));
+
+    if (!entries.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="4" class="muted">Aucun code spécial enregistré.</td>';
+      elSpecialCodesList.appendChild(tr);
+      return;
+    }
+
+    entries.forEach((entry) => {
+      const code = safeUpper(entry.code);
+      const data = entry.data || {};
+      const label = getSpecialLabel(code, data);
+      const allowed = getAuthState(code);
+      const isReserved = RESERVED_SPECIAL_CODES.has(code);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(code)}</strong></td>
+        <td>${escapeHtml(label)}</td>
+        <td><span class="badge ${allowed ? 'ok' : 'no'}">${allowed ? 'Actif' : 'Suspendu'}</span></td>
+        <td>
+          <button class="btn small ${allowed ? 'danger' : 'success'}" data-action="toggle" ${unlocked ? '' : 'disabled'}>${allowed ? 'Suspendre' : 'Activer'}</button>
+          <button class="btn small" data-action="copy">Copier</button>
+          <button class="btn small" data-action="delete" ${!unlocked || isReserved ? 'disabled' : ''}>Supprimer</button>
+        </td>
+      `;
+
+      tr.querySelector('[data-action="toggle"]').addEventListener('click', async () => {
+        try {
+          await setAuthState(code, !allowed);
+        } catch (e) {
+          console.error(e);
+          setSpecialCreateStatus(`Erreur de mise à jour pour ${code}.`, 'err');
+        }
+      });
+
+      tr.querySelector('[data-action="copy"]').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code);
+          setSpecialCreateStatus(`Code ${code} copié.`, 'ok');
+        } catch (_e) {
+          setSpecialCreateStatus(`Copie impossible automatiquement pour ${code}.`, 'err');
+        }
+      });
+
+      tr.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+        if (isReserved) return;
+        if (!unlocked) return;
+        if (!confirm(`Supprimer le code ${code} ?`)) return;
+        try {
+          await firebase.database().ref(`${REF_AUTORISATIONS}/${code}`).remove();
+          setSpecialCreateStatus(`Code ${code} supprimé.`, 'ok');
+        } catch (e) {
+          console.error(e);
+          setSpecialCreateStatus(`Erreur lors de la suppression de ${code}.`, 'err');
+        }
+      });
+
+      elSpecialCodesList.appendChild(tr);
+    });
+  }
+
+  async function ensureDefaultSpecialCodes() {
+    if (specialDefaultsReady || ensuringSpecialDefaults) return;
+    ensuringSpecialDefaults = true;
+    try {
+      const now = Date.now();
+      const prof = autorisationsCache.PROFPSE || null;
+      const invite = autorisationsCache.INVITE || null;
+
+      if (!prof) {
+        await firebase.database().ref(`${REF_AUTORISATIONS}/PROFPSE`).set({
+          autorise: true,
+          label: 'Accès personnel enseignant',
+          special: true,
+          userCode: 'PROFPSE',
+          bypass_schedule: true,
+          updated_at: now,
+        });
+      } else {
+        const patch = {};
+        if (prof.special !== true) patch.special = true;
+        if (prof.bypass_schedule !== true) patch.bypass_schedule = true;
+        if (!prof.userCode) patch.userCode = 'PROFPSE';
+        if (!prof.label) patch.label = 'Accès personnel enseignant';
+        if (Object.keys(patch).length) {
+          patch.updated_at = now;
+          await firebase.database().ref(`${REF_AUTORISATIONS}/PROFPSE`).update(patch);
+        }
+      }
+
+      if (!invite) {
+        await firebase.database().ref(`${REF_AUTORISATIONS}/INVITE`).set({
+          autorise: false,
+          label: 'Accès invité',
+          special: true,
+          userCode: 'INVITE',
+          bypass_schedule: true,
+          updated_at: now,
+        });
+      } else {
+        const patch = {};
+        if (invite.special !== true) patch.special = true;
+        if (invite.bypass_schedule !== true) patch.bypass_schedule = true;
+        if (!invite.userCode) patch.userCode = 'INVITE';
+        if (!invite.label) patch.label = 'Accès invité';
+        if (Object.keys(patch).length) {
+          patch.updated_at = now;
+          await firebase.database().ref(`${REF_AUTORISATIONS}/INVITE`).update(patch);
+        }
+      }
+      specialDefaultsReady = true;
+    } catch (e) {
+      console.error('Impossible de garantir les codes spéciaux par défaut', e);
+    } finally {
+      ensuringSpecialDefaults = false;
+    }
+  }
+
+  async function createSpecialCode() {
+    if (!unlocked) {
+      setSpecialCreateStatus('Déverrouille le cockpit pour créer un code.', 'err');
+      return;
+    }
+    const label = String(elSpecialLabel ? elSpecialLabel.value : '').trim() || 'Code spécial';
+    let code = normalizeCode(elSpecialCode ? elSpecialCode.value : '');
+    if (!code) code = nextAvailableSpecialCode();
+    if (!code) {
+      setSpecialCreateStatus('Impossible de générer un code libre.', 'err');
+      return;
+    }
+    if (!/^[A-Z0-9]{4,16}$/.test(code)) {
+      setSpecialCreateStatus('Le code doit contenir 4 à 16 caractères alphanumériques.', 'err');
+      return;
+    }
+    if (isStudentCode(code)) {
+      setSpecialCreateStatus('Ce code existe déjà pour un élève.', 'err');
+      return;
+    }
+    try {
+      await firebase.database().ref(`${REF_AUTORISATIONS}/${code}`).update({
+        autorise: true,
+        special: true,
+        label,
+        userCode: code,
+        bypass_schedule: true,
+        updated_at: Date.now(),
+      });
+      if (elSpecialCode) elSpecialCode.value = code;
+      if (elSpecialLabel) elSpecialLabel.value = '';
+      setSpecialCreateStatus(`Code ${code} créé et activé.`, 'ok');
+    } catch (e) {
+      console.error(e);
+      setSpecialCreateStatus('Erreur lors de la création du code spécial.', 'err');
+    }
   }
 
   function setUnlockStatus(message, ok) {
@@ -564,6 +796,7 @@
   function subscribeAutorisations() {
     firebase.database().ref(REF_AUTORISATIONS).on('value', (snap) => {
       autorisationsCache = snap.val() || {};
+      ensureDefaultSpecialCodes();
       renderListeEleves();
       renderSpecialStatuses();
       if (selectedAccCode) openEleve(selectedAccCode);
@@ -687,6 +920,41 @@
       btnClearRoster.addEventListener('click', clearLocalRoster);
     }
 
+    if (elSpecialCode) {
+      elSpecialCode.addEventListener('input', (e) => {
+        e.target.value = normalizeCode(e.target.value).slice(0, 16);
+      });
+      elSpecialCode.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') createSpecialCode();
+      });
+    }
+
+    if (elSpecialLabel) {
+      elSpecialLabel.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') createSpecialCode();
+      });
+    }
+
+    if (btnGenerateSpecial) {
+      btnGenerateSpecial.addEventListener('click', () => {
+        if (!unlocked) {
+          setSpecialCreateStatus('Déverrouille le cockpit pour générer un code.', 'err');
+          return;
+        }
+        const next = nextAvailableSpecialCode();
+        if (!next) {
+          setSpecialCreateStatus('Aucun code libre disponible.', 'err');
+          return;
+        }
+        if (elSpecialCode) elSpecialCode.value = next;
+        setSpecialCreateStatus(`Code proposé : ${next}`, 'ok');
+      });
+    }
+
+    if (btnCreateSpecial) {
+      btnCreateSpecial.addEventListener('click', createSpecialCode);
+    }
+
     if (btnSpecialProfpse) {
       btnSpecialProfpse.addEventListener('click', async () => {
         try {
@@ -716,6 +984,7 @@
     renderExportButtons();
     renderListeEleves();
     renderSpecialStatuses();
+    setSpecialCreateStatus('Crée un code démo puis active/suspend selon besoin.', '');
     bindEvents();
 
     if (unlocked) {

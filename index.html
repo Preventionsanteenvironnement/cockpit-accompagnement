@@ -200,7 +200,7 @@ tr:last-child td { border-bottom: none; }
 
         <div class="card" style="margin-bottom:14px;">
           <h2>Codes spéciaux</h2>
-          <p class="muted" style="margin-top:0;">Codes insensibles aux majuscules/minuscules sur la page élève.</p>
+          <p class="muted" style="margin-top:0;">Codes insensibles aux majuscules/minuscules sur la page élève. PROFPSE est actif par défaut (modifiable).</p>
           <div class="row" style="margin-bottom:8px;">
             <button class="btn" id="btn-special-profpse">Basculer PROFPSE</button>
             <span class="status" id="status-special-profpse">—</span>
@@ -208,6 +208,27 @@ tr:last-child td { border-bottom: none; }
           <div class="row">
             <button class="btn" id="btn-special-invite">Basculer INVITE</button>
             <span class="status" id="status-special-invite">—</span>
+          </div>
+          <hr style="margin:12px 0;border:none;border-top:1px solid #e5e7eb;">
+          <div class="row">
+            <input class="input" id="special-label" type="text" placeholder="Libellé (ex: Collègues PSE)" maxlength="40" autocomplete="off">
+            <input class="input" id="special-code" type="text" placeholder="Code (4-16)" maxlength="16" autocomplete="off">
+            <button class="btn" id="btn-generate-special">Générer</button>
+            <button class="btn success" id="btn-create-special">Ajouter</button>
+          </div>
+          <p class="status" id="special-create-status" style="margin-top:8px;"></p>
+          <div class="table-wrap" style="margin-top:10px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Libellé</th>
+                  <th>Accès</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="special-codes-list"></tbody>
+            </table>
           </div>
         </div>
 
