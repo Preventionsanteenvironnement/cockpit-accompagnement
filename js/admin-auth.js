@@ -1689,6 +1689,8 @@
     var c = safeUpper(code);
     var entry = registreCache[c];
     var data = getEleveData(c);
+    // Load eleve data from Firebase if not cached
+    if (!data || !Object.keys(data).length) loadEleveData(c);
 
     selectedAccCode = c;
     setScheduleCodeValue(c);
@@ -1887,10 +1889,20 @@
     // Custom special codes will be subscribed when created via createSpecialCode()
   }
 
-  function subscribeEleves() {
-    firebase.database().ref(REF_ELEVES).on('value', function (snap) {
-      elevesCache = snap.val() || {};
-      if (selectedAccCode) openEleve(selectedAccCode);
+  // Read eleve data individually (collection not readable)
+  function loadEleveData(code) {
+    var c = safeUpper(code);
+    var dataCode = getEleveDataCode(c);
+    var codes = [c];
+    if (dataCode !== c) codes.push(dataCode);
+    codes.forEach(function (k) {
+      firebase.database().ref(REF_ELEVES + '/' + k).once('value').then(function (snap) {
+        var val = snap.val();
+        if (val) {
+          elevesCache[k] = val;
+          if (selectedAccCode === c) openEleve(c);
+        }
+      }).catch(function () { /* ignore permission errors */ });
     });
   }
 
@@ -2030,7 +2042,6 @@
     loadTeacherCodes();
     subscribeStudentRegistry();
     subscribeAllSpecialCodes();
-    subscribeEleves();
     subscribeValidations();
     subscribeCustomGlobal();
     refreshCustomEleveSelection();
