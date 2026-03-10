@@ -22,6 +22,7 @@
   const REF_CUSTOM_PAR_ELEVE = DB_ROOT + '/bibliotheque_custom/par_eleve';
   const REF_TEACHER_CODES = DB_ROOT + '/config/teacher_codes';
   const REF_STUDENT_REGISTRY = DB_ROOT + '/config/student_registry';
+  const REF_CUSTOM_SPECIAL_REGISTRY = DB_ROOT + '/config/custom_special_codes';
 
   // Codes de deverrouillage obfusques (CPS2026, PROFPSE, INVITE)
   var UNLOCK_CODES_B64 = ['Q1BTMjAyNg==', 'UFJPRlBTRQ==', 'SU5WSVRF'];
@@ -890,6 +891,8 @@
       autorise: true, special: true, label: label,
       userCode: code, bypass_schedule: true, updated_at: Date.now()
     }).then(function () {
+      // Register custom special code for persistence across reloads
+      firebase.database().ref(REF_CUSTOM_SPECIAL_REGISTRY + '/' + code).set(true);
       // Subscribe to this new special code for live updates
       subscribeSpecialCode(code);
       if (elSpecialCode) elSpecialCode.value = code;
@@ -961,6 +964,7 @@
         if (isReserved || !unlocked) return;
         if (!confirm('Supprimer le code ' + code + ' ?')) return;
         firebase.database().ref(REF_AUTORISATIONS + '/' + code).remove().then(function () {
+          firebase.database().ref(REF_CUSTOM_SPECIAL_REGISTRY + '/' + code).remove();
           setSpecialCreateStatus('Code ' + code + ' supprime.', 'ok');
         }).catch(function (e) {
           console.error(e);
@@ -1133,11 +1137,12 @@
     var err = validateSchedule(horaires);
     if (err) { setStatus(elCodeScheduleStatus, err, 'err'); return; }
     firebase.database().ref(REF_AUTORISATIONS + '/' + code).once('value').then(function (snap) {
-      if (!snap.exists()) { setStatus(elCodeScheduleStatus, 'Code ' + code + ' introuvable.', 'err'); return; }
+      if (!snap.exists()) { setStatus(elCodeScheduleStatus, 'Code ' + code + ' introuvable.', 'err'); throw new Error('code_not_found'); }
       return firebase.database().ref(REF_AUTORISATIONS + '/' + code).update({ horaires: horaires, updated_at: Date.now() });
     }).then(function () {
       setStatus(elCodeScheduleStatus, 'Exception enregistree pour ' + code + '.', 'ok');
     }).catch(function (e) {
+      if (e && e.message === 'code_not_found') return;
       console.error(e);
       setStatus(elCodeScheduleStatus, 'Erreur d\'enregistrement.', 'err');
     });
@@ -1705,18 +1710,36 @@
       elNomEleve.textContent = (name !== '—' ? name + ' · ' : '') + c + (entry ? ' · ' + entry.classe : '');
     }
 
-    var objectifs = data.objectifs ? Object.keys(data.objectifs).length : 0;
-    var meteo = data.meteo ? Object.keys(data.meteo).length : 0;
     var autorise = getAuthState(c);
 
     if (elDetailEleve) {
-      elDetailEleve.innerHTML =
-        '<div><strong>Code :</strong> ' + c + '</div>' +
+      var h = '<div><strong>Code :</strong> ' + c + '</div>' +
         '<div><strong>Eleve :</strong> ' + escapeHtml(entry ? displayName(entry) : '—') + '</div>' +
         '<div><strong>Classe :</strong> ' + (entry ? escapeHtml(entry.classe) : '—') + '</div>' +
-        '<div><strong>Acces :</strong> ' + (autorise ? 'Autorise' : 'Non autorise') + '</div>' +
-        '<div><strong>Objectifs :</strong> ' + objectifs + '</div>' +
-        '<div><strong>Meteo :</strong> ' + meteo + '</div>';
+        '<div><strong>Acces :</strong> ' + (autorise ? 'Autorise' : 'Non autorise') + '</div>';
+      if (data.objectifs) {
+        var objKeys = Object.keys(data.objectifs);
+        h += '<div style="margin-top:8px"><strong>Objectifs (' + objKeys.length + ') :</strong></div>';
+        h += '<ul style="margin:4px 0 0 16px;padding:0;font-size:.85em">';
+        objKeys.forEach(function (k) {
+          var o = data.objectifs[k];
+          var status = o.done ? '✅' : '⏳';
+          h += '<li>' + status + ' ' + escapeHtml(o.titre || 'Sans titre') + '</li>';
+        });
+        h += '</ul>';
+      } else { h += '<div><strong>Objectifs :</strong> 0</div>'; }
+      if (data.meteo) {
+        var meteoKeys = Object.keys(data.meteo).sort().reverse();
+        h += '<div style="margin-top:8px"><strong>Meteo (' + meteoKeys.length + ') :</strong></div>';
+        h += '<ul style="margin:4px 0 0 16px;padding:0;font-size:.85em">';
+        meteoKeys.slice(0, 5).forEach(function (dateKey) {
+          var m = data.meteo[dateKey];
+          h += '<li>' + escapeHtml(dateKey) + ' : ' + (m.emoji || '') + ' ' + escapeHtml(m.primary || '—') + '</li>';
+        });
+        if (meteoKeys.length > 5) h += '<li>…et ' + (meteoKeys.length - 5) + ' de plus</li>';
+        h += '</ul>';
+      } else { h += '<div><strong>Meteo :</strong> 0</div>'; }
+      elDetailEleve.innerHTML = h;
     }
   }
 
@@ -1885,8 +1908,15 @@
     RESERVED_SPECIAL_CODES.forEach(function (code) {
       subscribeSpecialCode(code);
     });
-    // Also subscribe to any custom special codes we discover
-    // Custom special codes will be subscribed when created via createSpecialCode()
+    // Load custom special codes from registry and subscribe
+    firebase.database().ref(REF_CUSTOM_SPECIAL_REGISTRY).once('value').then(function (snap) {
+      var codes = snap.val() || {};
+      Object.keys(codes).forEach(function (code) {
+        if (!RESERVED_SPECIAL_CODES.has(code)) {
+          subscribeSpecialCode(code);
+        }
+      });
+    }).catch(function (e) { console.warn('Could not load custom special codes registry:', e); });
   }
 
   // Read eleve data individually (collection not readable)
