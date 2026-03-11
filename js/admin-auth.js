@@ -231,6 +231,14 @@
     return CPS_COMPETENCES.find(function (it) { return it.code === c; }) || null;
   }
 
+  function guessDomainFromCode(code) {
+    var c = String(code || '').toUpperCase();
+    if (c.charAt(0) === 'C') return 'COG';
+    if (c.charAt(0) === 'E') return 'EMO';
+    if (c.charAt(0) === 'S') return 'SOC';
+    return 'NEU';
+  }
+
   function normalizeCustomText(v) {
     return String(v || '').replace(/\s+/g, ' ').trim();
   }
@@ -1911,20 +1919,106 @@
         });
         h += '</ul>';
       } else { h += '<div><strong>Objectifs :</strong> 0</div>'; }
-      if (data.meteo) {
-        var meteoKeys = Object.keys(data.meteo).sort().reverse();
-        h += '<div style="margin-top:8px"><strong>Meteo (' + meteoKeys.length + ') :</strong></div>';
-        h += '<ul style="margin:4px 0 0 16px;padding:0;font-size:.85em">';
-        meteoKeys.slice(0, 5).forEach(function (dateKey) {
-          var m = data.meteo[dateKey];
-          h += '<li>' + escapeHtml(dateKey) + ' : ' + (m.emoji || '') + ' ' + escapeHtml(m.primary || '—') + '</li>';
-        });
-        if (meteoKeys.length > 5) h += '<li>…et ' + (meteoKeys.length - 5) + ' de plus</li>';
-        h += '</ul>';
-      } else { h += '<div><strong>Meteo :</strong> 0</div>'; }
+
+      // Add objective creation form (collapsible)
+      h += '<div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px">';
+      h += '<button class="btn small" onclick="var f=document.getElementById(\'add-obj-form\');f.style.display=f.style.display===\'none\'?\'block\':\'none\'">➕ Ajouter un objectif</button>';
+      h += '<div id="add-obj-form" style="display:none;margin-top:10px">';
+      h += '<div style="margin-bottom:6px"><label style="font-size:.8em;font-weight:700">Cadre :</label> ';
+      h += '<select class="select" id="add-obj-context" style="font-size:.85em">';
+      h += '<option value="Scolaire">Scolaire</option>';
+      h += '<option value="PFMP">PFMP</option>';
+      h += '<option value="Recherche">Recherche</option>';
+      h += '</select></div>';
+      h += '<div style="margin-bottom:6px"><label style="font-size:.8em;font-weight:700">Competence CPS :</label> ';
+      h += '<select class="select" id="add-obj-competence" style="font-size:.85em">';
+      CPS_COMPETENCES.forEach(function (comp) {
+        h += '<option value="' + comp.code + '">' + comp.code + ' — ' + escapeHtml(comp.nom) + '</option>';
+      });
+      h += '</select></div>';
+      h += '<div style="margin-bottom:6px"><label style="font-size:.8em;font-weight:700">Objectif :</label> ';
+      h += '<input type="text" class="input" id="add-obj-titre" placeholder="Texte de l\'objectif..." style="width:100%"></div>';
+      h += '<div style="margin-bottom:6px"><label style="font-size:.8em;font-weight:700">Date cible :</label> ';
+      h += '<input type="date" class="input" id="add-obj-date" value="' + todayISO() + '"></div>';
+      h += '<div style="margin-bottom:8px"><label style="font-size:.8em;font-weight:700">Detail (optionnel) :</label> ';
+      h += '<input type="text" class="input" id="add-obj-detail" placeholder="Matiere, lieu, cible..." style="width:100%"></div>';
+      h += '<button class="btn success" onclick="createObjectifForEleve()">Creer</button>';
+      h += ' <span id="status-add-obj" style="font-size:.8em"></span>';
+      h += '</div></div>';
+
       elDetailEleve.innerHTML = h;
     }
   }
+
+  // ═══════════════════════════════════════════
+  // CREATE OBJECTIVE FOR STUDENT (FROM COCKPIT)
+  // ═══════════════════════════════════════════
+  function createObjectifForEleve() {
+    var statusEl = document.getElementById('status-add-obj');
+    if (!unlocked) {
+      setStatus(statusEl, 'Deverrouille le cockpit.', 'err');
+      return;
+    }
+    var code = selectedAccCode;
+    if (!code) {
+      setStatus(statusEl, 'Aucun eleve selectionne.', 'err');
+      return;
+    }
+    var titre = (document.getElementById('add-obj-titre') || {}).value;
+    if (!titre || !titre.trim()) {
+      setStatus(statusEl, 'Le texte de l\'objectif est obligatoire.', 'err');
+      return;
+    }
+    titre = titre.trim();
+
+    var context = (document.getElementById('add-obj-context') || {}).value || 'Scolaire';
+    var compCode = (document.getElementById('add-obj-competence') || {}).value || '';
+    var comp = findCompetence(compCode);
+    if (!comp) {
+      setStatus(statusEl, 'Competence invalide.', 'err');
+      return;
+    }
+    var dateCible = (document.getElementById('add-obj-date') || {}).value || todayISO();
+    var detail = ((document.getElementById('add-obj-detail') || {}).value || '').trim() || 'Non precise';
+    var domain = guessDomainFromCode(comp.code);
+
+    var pushData = {
+      context: context,
+      type: domain,
+      titre: titre,
+      date_cible: dateCible,
+      detail: detail,
+      done: false,
+      created: new Date().toISOString(),
+      ref_source: 'Enseignant (cockpit)',
+      cat_code: comp.code.split('.')[0] || '',
+      cat_label: '',
+      gen_code: '',
+      gen_label: '',
+      spe_code: comp.code,
+      spe_label: comp.nom,
+      code_ref: '',
+      domaine: domain,
+      critere_reussite: '',
+      niveau_depart: 1,
+      cree_par: 'enseignant_cockpit'
+    };
+
+    firebase.database().ref(REF_ELEVES + '/' + code + '/objectifs').push(pushData)
+      .then(function () {
+        setStatus(statusEl, 'Objectif cree.', 'ok');
+        var titreEl = document.getElementById('add-obj-titre');
+        if (titreEl) titreEl.value = '';
+        var detailEl = document.getElementById('add-obj-detail');
+        if (detailEl) detailEl.value = '';
+        loadEleveData(code);
+      })
+      .catch(function (e) {
+        console.error(e);
+        setStatus(statusEl, 'Erreur Firebase.', 'err');
+      });
+  }
+  window.createObjectifForEleve = createObjectifForEleve;
 
   function renderValidations(items) {
     if (!elListeValidations) return;
