@@ -359,12 +359,25 @@ tr:last-child td { border-bottom: none; }
             <button class="btn" id="btn-change-teacher-code" style="display:none;">&#128260; Modifier mon code</button>
             <span class="status" id="unlock-status">Cockpit verrouille</span>
           </div>
+          <div id="shared-code-zone" class="hidden" style="margin-top:12px; padding-top:12px; border-top:1px solid #e5e7eb;">
+            <p style="margin:0 0 8px; font-size:0.85rem; font-weight:700; color:#374151;">Code enseignant partage</p>
+            <div class="row">
+              <span id="shared-code-display" style="font-size:1.1rem; font-weight:800; letter-spacing:2px; color:#2563eb;">—</span>
+              <button class="btn small" id="btn-copy-shared-code">Copier</button>
+            </div>
+            <div class="row" style="margin-top:8px;">
+              <input class="input" id="shared-code-input" type="text" placeholder="Nouveau code (min. 4 car.)" maxlength="16" autocomplete="off">
+              <button class="btn" id="btn-generate-shared-code">Generer</button>
+              <button class="btn success" id="btn-save-shared-code">Enregistrer</button>
+            </div>
+            <span class="status" id="shared-code-status" style="display:block; margin-top:6px;"></span>
+          </div>
         </div>
 
         <!-- 2. Import CSV -->
         <div class="card" style="margin-bottom:14px;">
           <h2>&#128229; Importer des eleves</h2>
-          <p class="muted" style="margin-top:0;">Importe un CSV (classe;prenom;nom) pour creer les eleves et generer automatiquement leurs codes d'acces.</p>
+          <p class="muted" style="margin-top:0;">Importe un CSV (classe;prenom;nom) pour creer les eleves et generer leurs codes d'acces. Les noms restent sur ton appareil uniquement (RGPD).</p>
           <div class="csv-drop-zone" id="csv-drop-zone">
             <p>&#128194; Glisse un fichier CSV ici ou clique pour choisir</p>
             <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none;">
@@ -377,6 +390,17 @@ tr:last-child td { border-bottom: none; }
             </div>
           </div>
           <p class="status" id="csv-status" style="margin-top:8px;"></p>
+          <hr style="margin:12px 0; border:none; border-top:1px solid #e5e7eb;">
+          <h3 style="font-size:0.9rem; font-weight:800; margin:0 0 6px;">&#128100; Charger les noms (fichier local)</h3>
+          <p class="muted" style="margin:0 0 8px; font-size:0.82rem;">Les noms ne sont pas enregistres dans Firebase (RGPD). Charge ton fichier <strong>DataEleves.csv</strong> pour afficher les noms. Ils restent sur ton appareil uniquement.</p>
+          <div class="csv-drop-zone" id="local-names-drop-zone" style="padding:16px;">
+            <p style="font-size:0.82rem;">&#128194; Glisse <strong>DataEleves.csv</strong> ici ou clique</p>
+            <input type="file" id="local-names-file-input" accept=".csv,text/csv" style="display:none;">
+          </div>
+          <div id="local-names-status-row" class="hidden" style="gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+            <span class="status" id="local-names-status"></span>
+            <button class="btn small" id="btn-download-local-names">Telecharger DataEleves.csv</button>
+          </div>
         </div>
 
         <!-- 3. Mes eleves -->

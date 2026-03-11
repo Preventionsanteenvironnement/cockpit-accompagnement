@@ -91,6 +91,11 @@
   var btnCsvImport = document.getElementById('btn-csv-import');
   var btnCsvCancel = document.getElementById('btn-csv-cancel');
   var elCsvStatus = document.getElementById('csv-status');
+  var elLocalNamesDropZone = document.getElementById('local-names-drop-zone');
+  var elLocalNamesFileInput = document.getElementById('local-names-file-input');
+  var elLocalNamesStatus = document.getElementById('local-names-status');
+  var elLocalNamesStatusRow = document.getElementById('local-names-status-row');
+  var btnDownloadLocalNames = document.getElementById('btn-download-local-names');
   var elSpecialLabel = document.getElementById('special-label');
   var elSpecialCode = document.getElementById('special-code');
   var btnGenerateSpecial = document.getElementById('btn-generate-special');
@@ -125,6 +130,13 @@
   var elCustomEleveList = document.getElementById('custom-eleve-list');
   var elModalOverlay = document.getElementById('modal-overlay');
   var elModalContent = document.getElementById('modal-content');
+  var elSharedCodeZone = document.getElementById('shared-code-zone');
+  var elSharedCodeDisplay = document.getElementById('shared-code-display');
+  var elSharedCodeInput = document.getElementById('shared-code-input');
+  var btnCopySharedCode = document.getElementById('btn-copy-shared-code');
+  var btnGenerateSharedCode = document.getElementById('btn-generate-shared-code');
+  var btnSaveSharedCode = document.getElementById('btn-save-shared-code');
+  var elSharedCodeStatus = document.getElementById('shared-code-status');
 
   // ═══════════════════════════════════════════
   // STATE & CACHES
@@ -134,7 +146,8 @@
     return;
   }
 
-  var registreCache = {};       // { code: { code, classe, prenom, nom, created_at } }
+  var registreCache = {};       // { code: { code, classe, autorise, created_at } }
+  var localNamesCache = {};     // { CODE: { prenom, nom } } — from local file only (RGPD)
   var autorisationsCache = {};  // { code: { autorise, special, label, ... } }
   var elevesCache = {};         // { code: { objectifs, meteo, ... } }
   var teacherCodesCache = [];   // Array of custom teacher codes from Firebase
@@ -313,8 +326,6 @@
         registreCache[code] = {
           code: code,
           classe: entry.classe || '',
-          prenom: entry.prenom || '',
-          nom: entry.nom || '',
           autorise: entry.autorise !== false,
           created_at: entry.created_at || 0
         };
@@ -457,11 +468,13 @@
         }
       }
 
-      // Write to student registry (source of truth)
+      // Store name locally only (RGPD)
+      if (row.prenom || row.nom) {
+        localNamesCache[code] = { prenom: row.prenom || '', nom: row.nom || '' };
+      }
+      // Write to student registry (source of truth — no names)
       updates[REF_STUDENT_REGISTRY + '/' + code] = {
         classe: row.classe,
-        prenom: row.prenom || '',
-        nom: row.nom || '',
         autorise: true,
         created_at: now,
         created_by: 'csv_import',
@@ -487,6 +500,7 @@
       if (generated > 0) msg += ' ' + generated + ' code' + (generated > 1 ? 's' : '') + ' genere' + (generated > 1 ? 's' : '') + '.';
       if (reused > 0) msg += ' ' + reused + ' deja existant' + (reused > 1 ? 's' : '') + '.';
       setCsvStatus(msg, 'ok');
+      offerLocalNameDownload();
       csvPendingRows = null;
       if (elCsvPreview) elCsvPreview.classList.add('hidden');
       if (elCsvFileInput) elCsvFileInput.value = '';
@@ -501,6 +515,104 @@
     if (elCsvPreview) elCsvPreview.classList.add('hidden');
     if (elCsvFileInput) elCsvFileInput.value = '';
     setCsvStatus('', '');
+  }
+
+  // ═══════════════════════════════════════════
+  // LOCAL NAMES FILE (RGPD)
+  // ═══════════════════════════════════════════
+  function setLocalNamesStatus(message, type) {
+    setStatus(elLocalNamesStatus, message, type);
+    if (elLocalNamesStatusRow) {
+      elLocalNamesStatusRow.classList.toggle('hidden', !message);
+      elLocalNamesStatusRow.style.display = message ? 'flex' : 'none';
+    }
+  }
+
+  function buildLocalNamesCsv() {
+    var lines = ['code,classe,prenom,nom'];
+    Object.keys(registreCache).sort().forEach(function (code) {
+      var reg = registreCache[code];
+      var local = localNamesCache[code] || {};
+      var prenom = local.prenom || '';
+      var nom = local.nom || '';
+      if (!prenom && !nom) return;
+      var line = [code, reg.classe || '', prenom, nom].map(function (v) {
+        var s = String(v || '');
+        if (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }).join(',');
+      lines.push(line);
+    });
+    return lines.join('\n');
+  }
+
+  function downloadLocalNamesCsv() {
+    var csv = buildLocalNamesCsv();
+    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'DataEleves.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function offerLocalNameDownload() {
+    var count = Object.keys(localNamesCache).length;
+    if (!count) return;
+    setLocalNamesStatus(
+      count + ' noms en memoire locale. Telecharge DataEleves.csv pour les conserver.',
+      'ok'
+    );
+  }
+
+  function processLocalNamesFile(file) {
+    if (!file) return;
+    file.text().then(function (text) {
+      var lines = text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(function (l) { return l.length > 0; });
+      if (lines.length < 2) {
+        setLocalNamesStatus('Fichier vide ou incomplet.', 'err');
+        return;
+      }
+      var delimiter = detectDelimiter(lines[0]);
+      var headers = parseCsvLine(lines[0], delimiter).map(normalizeHeader);
+      var idxCode = headers.findIndex(function (h) { return ['code', 'acccode', 'codeacc', 'code_acc'].indexOf(h) >= 0; });
+      var idxPrenom = headers.findIndex(function (h) { return ['prenom', 'firstname', 'first_name'].indexOf(h) >= 0; });
+      var idxNom = headers.findIndex(function (h) { return ['nom', 'lastname', 'last_name'].indexOf(h) >= 0; });
+
+      if (idxCode < 0 || idxPrenom < 0 || idxNom < 0) {
+        setLocalNamesStatus('En-tetes attendus : code, prenom, nom.', 'err');
+        return;
+      }
+
+      var loaded = 0;
+      for (var i = 1; i < lines.length; i++) {
+        var cols = parseCsvLine(lines[i], delimiter);
+        var code = normalizeCode(cols[idxCode] || '');
+        var prenom = String(cols[idxPrenom] || '').trim();
+        var nom = String(cols[idxNom] || '').trim();
+        if (!code || (!prenom && !nom)) continue;
+        localNamesCache[code] = { prenom: prenom, nom: nom };
+        loaded++;
+      }
+
+      if (!loaded) {
+        setLocalNamesStatus('Aucune ligne utilisable dans ce fichier.', 'err');
+        return;
+      }
+
+      setLocalNamesStatus(loaded + ' noms charges en memoire locale.', 'ok');
+      renderListeEleves();
+      renderCustomEleveOptions();
+      if (selectedAccCode) openEleve(selectedAccCode);
+    }).catch(function (e) {
+      console.error(e);
+      setLocalNamesStatus('Erreur de lecture du fichier.', 'err');
+    });
   }
 
   // ═══════════════════════════════════════════
@@ -540,11 +652,13 @@
 
       var now = Date.now();
       var updates = {};
-      // Write to student registry (source of truth)
+      // Store name locally only (RGPD)
+      if (prenom || nom) {
+        localNamesCache[code] = { prenom: prenom, nom: nom };
+      }
+      // Write to student registry (source of truth — no names)
       updates[REF_STUDENT_REGISTRY + '/' + code] = {
         classe: classe,
-        prenom: prenom,
-        nom: nom,
         autorise: true,
         created_at: now,
         created_by: 'enseignant',
@@ -558,6 +672,7 @@
 
       scopedUpdate(updates).then(function () {
         closeModal();
+        offerLocalNameDownload();
         setUnlockStatus('Eleve ' + code + ' cree.', true);
       }).catch(function (e) {
         console.error(e);
@@ -574,7 +689,7 @@
 
     showModal(
       '<h3>Modifier le code</h3>' +
-      '<p class="muted">Eleve : ' + escapeHtml(student.prenom || '') + ' ' + escapeHtml(student.nom || '') + ' (' + escapeHtml(student.classe) + ')</p>' +
+      '<p class="muted">Eleve : ' + escapeHtml(displayName(student)) + ' (' + escapeHtml(student.classe) + ')</p>' +
       '<p class="muted">Code actuel : <strong>' + escapeHtml(oldCode) + '</strong></p>' +
       '<div class="form-group"><label>Nouveau code</label><input class="input" id="modal-new-code" type="text" value="' + escapeHtml(newSuggested) + '" maxlength="16"></div>' +
       '<p class="status" id="modal-status"></p>' +
@@ -621,6 +736,12 @@
     regEntry.updated_at = now;
     updates[REF_STUDENT_REGISTRY + '/' + nw] = regEntry;
     updates[REF_STUDENT_REGISTRY + '/' + old] = null;
+
+    // Migrate local name (RGPD)
+    if (localNamesCache[old]) {
+      localNamesCache[nw] = localNamesCache[old];
+      delete localNamesCache[old];
+    }
 
     // 2. Move autorisation entry (for student app backward compat)
     updates[REF_AUTORISATIONS + '/' + nw] = {
@@ -795,6 +916,64 @@
         console.error(e);
         setStatus(statusEl, 'Erreur Firebase.', 'err');
       });
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // SHARED TEACHER CODE MANAGEMENT
+  // ═══════════════════════════════════════════
+  function renderSharedCode() {
+    var code = teacherCodesCache.length ? teacherCodesCache[0] : '';
+    if (elSharedCodeDisplay) {
+      elSharedCodeDisplay.textContent = code || 'Aucun code defini';
+      elSharedCodeDisplay.style.color = code ? '#2563eb' : '#6b7280';
+    }
+    if (elSharedCodeZone) {
+      elSharedCodeZone.classList.toggle('hidden', !unlocked);
+    }
+  }
+
+  function generateSharedCode() {
+    var code = generateSpecialCodeCandidate(6);
+    if (elSharedCodeInput) elSharedCodeInput.value = code;
+    setStatus(elSharedCodeStatus, 'Code propose : ' + code, 'ok');
+  }
+
+  function saveSharedCode() {
+    if (!unlocked) {
+      setStatus(elSharedCodeStatus, 'Deverrouille le cockpit.', 'err');
+      return;
+    }
+    var raw = elSharedCodeInput ? elSharedCodeInput.value.trim() : '';
+    if (!raw || raw.length < 4) {
+      setStatus(elSharedCodeStatus, 'Le code doit faire au moins 4 caracteres.', 'err');
+      return;
+    }
+    var code = raw.toUpperCase();
+    firebase.database().ref(REF_TEACHER_CODES).set({
+      codes: [code],
+      updated_at: Date.now()
+    }).then(function () {
+      teacherCodesCache = [code];
+      renderSharedCode();
+      if (elSharedCodeInput) elSharedCodeInput.value = '';
+      setStatus(elSharedCodeStatus, 'Code enseignant enregistre.', 'ok');
+    }).catch(function (e) {
+      console.error(e);
+      setStatus(elSharedCodeStatus, 'Erreur Firebase.', 'err');
+    });
+  }
+
+  function copySharedCode() {
+    var code = teacherCodesCache.length ? teacherCodesCache[0] : '';
+    if (!code) {
+      setStatus(elSharedCodeStatus, 'Aucun code a copier.', 'err');
+      return;
+    }
+    navigator.clipboard.writeText(code).then(function () {
+      setStatus(elSharedCodeStatus, 'Code copie.', 'ok');
+    }).catch(function () {
+      setStatus(elSharedCodeStatus, 'Copie impossible.', 'err');
     });
   }
 
@@ -1208,7 +1387,8 @@
       var code = safeUpper(row.code);
       if (!code) return;
       var label = code + ' · ' + (row.classe || '');
-      if (row.prenom || row.nom) label += ' · ' + ((row.prenom || '') + ' ' + (row.nom || '')).trim();
+      var localRow = localNamesCache[code] || {};
+      if (localRow.prenom || localRow.nom) label += ' · ' + ((localRow.prenom || '') + ' ' + (localRow.nom || '')).trim();
       var opt = document.createElement('option');
       opt.value = code;
       opt.textContent = label;
@@ -1593,7 +1773,9 @@
     return entries.sort(function (a, b) {
       var c = (a.classe || '').localeCompare(b.classe || '', 'fr');
       if (c !== 0) return c;
-      var n = (a.nom || '').localeCompare(b.nom || '', 'fr');
+      var la = localNamesCache[safeUpper(a.code)] || {};
+      var lb = localNamesCache[safeUpper(b.code)] || {};
+      var n = (la.nom || '').localeCompare(lb.nom || '', 'fr');
       if (n !== 0) return n;
       return (a.code || '').localeCompare(b.code || '', 'fr');
     });
@@ -1629,8 +1811,9 @@
 
   function displayName(entry) {
     if (!entry) return '—';
-    var full = ((entry.prenom || '') + ' ' + (entry.nom || '')).trim();
-    return full || '—';
+    var local = localNamesCache[safeUpper(entry.code)] || {};
+    var full = ((local.prenom || '') + ' ' + (local.nom || '')).trim();
+    return full || entry.code || '—';
   }
 
   function renderListeEleves() {
@@ -1821,7 +2004,9 @@
     var entries = Object.values(registreCache)
       .filter(function (e) { return e.classe === current; })
       .sort(function (a, b) {
-        return (a.nom || '').localeCompare(b.nom || '', 'fr') || (a.code || '').localeCompare(b.code || '', 'fr');
+        var la = localNamesCache[safeUpper(a.code)] || {};
+        var lb = localNamesCache[safeUpper(b.code)] || {};
+        return (la.nom || '').localeCompare(lb.nom || '', 'fr') || (a.code || '').localeCompare(b.code || '', 'fr');
       });
 
     if (!entries.length) return;
@@ -1872,6 +2057,7 @@
     if (btnBulkDeactivate) btnBulkDeactivate.disabled = !unlocked;
     if (btnCsvImport) btnCsvImport.disabled = !unlocked;
     if (btnChangeTeacherCode) btnChangeTeacherCode.style.display = unlocked ? '' : 'none';
+    renderSharedCode();
   }
 
   // ═══════════════════════════════════════════
@@ -1952,6 +2138,7 @@
     firebase.database().ref(REF_TEACHER_CODES).on('value', function (snap) {
       var data = snap.val();
       teacherCodesCache = (data && Array.isArray(data.codes)) ? data.codes : [];
+      renderSharedCode();
     });
   }
 
@@ -1966,6 +2153,15 @@
       elTeacherCode.addEventListener('input', function (e) { e.target.value = normalizeCode(e.target.value).slice(0, 16); });
     }
     if (btnChangeTeacherCode) btnChangeTeacherCode.addEventListener('click', showChangeTeacherCodeModal);
+
+    // Shared teacher code
+    if (btnGenerateSharedCode) btnGenerateSharedCode.addEventListener('click', generateSharedCode);
+    if (btnSaveSharedCode) btnSaveSharedCode.addEventListener('click', saveSharedCode);
+    if (btnCopySharedCode) btnCopySharedCode.addEventListener('click', copySharedCode);
+    if (elSharedCodeInput) {
+      elSharedCodeInput.addEventListener('input', function (e) { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16); });
+      elSharedCodeInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') saveSharedCode(); });
+    }
 
     // CSV import
     if (elCsvDropZone) {
@@ -1985,6 +2181,33 @@
     });
     if (btnCsvImport) btnCsvImport.addEventListener('click', importCsvToFirebase);
     if (btnCsvCancel) btnCsvCancel.addEventListener('click', cancelCsvImport);
+
+    // Local names file (RGPD)
+    if (elLocalNamesDropZone) {
+      elLocalNamesDropZone.addEventListener('click', function () {
+        if (elLocalNamesFileInput) elLocalNamesFileInput.click();
+      });
+      elLocalNamesDropZone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        elLocalNamesDropZone.classList.add('drag-over');
+      });
+      elLocalNamesDropZone.addEventListener('dragleave', function () {
+        elLocalNamesDropZone.classList.remove('drag-over');
+      });
+      elLocalNamesDropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        elLocalNamesDropZone.classList.remove('drag-over');
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) processLocalNamesFile(file);
+      });
+    }
+    if (elLocalNamesFileInput) {
+      elLocalNamesFileInput.addEventListener('change', function () {
+        var f = elLocalNamesFileInput.files && elLocalNamesFileInput.files[0];
+        if (f) processLocalNamesFile(f);
+      });
+    }
+    if (btnDownloadLocalNames) btnDownloadLocalNames.addEventListener('click', downloadLocalNamesCsv);
 
     // Students
     if (btnAddStudent) btnAddStudent.addEventListener('click', showAddStudentModal);
