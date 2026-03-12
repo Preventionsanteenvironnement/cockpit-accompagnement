@@ -1656,27 +1656,45 @@
 
       var titre = String(snapVal.titre || rec.objectif || 'objectif').trim();
       var shortTitle = titre.length > 80 ? titre.slice(0, 77) + '...' : titre;
-      if (!confirm('Valider l\'objectif "' + shortTitle + '" pour ' + eleveCode + ' ?')) {
+      var currentCount = snapVal.validations_count || 0;
+      if (currentCount >= 5) {
+        setUnlockStatus('Objectif deja a 5/5 etoiles pour ' + eleveCode + '.', true);
+        return;
+      }
+      var newCount = currentCount + 1;
+      if (!confirm('Ajouter une etoile a l\'objectif "' + shortTitle + '" pour ' + eleveCode + ' ? (' + newCount + '/5)')) {
         setUnlockStatus('Scan enregistre sans validation finale.', false);
         return;
       }
 
       var patch = {
+        validations_count: newCount,
+        last_star_date: new Date().toISOString().split('T')[0],
         validated_via_qr: true, validated_by: 'enseignant_qr',
         validated_at: Date.now(), updated_at: Date.now()
       };
-      if (snapVal.done !== true) {
+      if (newCount >= 5) {
         patch.done = true;
         patch.date_done = new Date().toISOString();
       }
 
       return goalRef.update(patch).then(function () {
         return goalRef.child('historique').push({
-          action: 'Valide par enseignant (scan QR cockpit)',
+          action: 'Etoile ajoutee par enseignant (scan QR) — ' + newCount + '/5',
           date: new Date().toISOString()
         });
       }).then(function () {
-        setUnlockStatus('Objectif valide pour ' + eleveCode + '.', true);
+        if (newCount >= 5) {
+          var speCode = String(snapVal.spe_code || (snapVal.cps && snapVal.cps.spe_code) || 'libre').replace(/[^A-Za-z0-9_.\-]/g, '_');
+          var dataCode = candidateCodes[0];
+          var passRef = firebase.database().ref(REF_ELEVES + '/' + dataCode + '/passeport/' + speCode);
+          passRef.once('value').then(function(psnap) {
+            var pdata = psnap.val() || {};
+            passRef.update({cycles_count: (pdata.cycles_count || 0) + 1, derniere_validation: new Date().toISOString()});
+            passRef.child('objectifs_completes').push({titre: snapVal.titre || 'Sans titre', date: new Date().toISOString(), context: snapVal.context || 'Autre'});
+          });
+        }
+        setUnlockStatus('Etoile ajoutee pour ' + eleveCode + ' (' + newCount + '/5).', true);
         if (selectedAccCode && safeUpper(selectedAccCode) === eleveCode) openEleve(eleveCode);
       });
     });
