@@ -2441,48 +2441,73 @@
   if (elBtnSuggestions) elBtnSuggestions.addEventListener('click', function () { if (!unlocked) return; loadSuggestions(); });
 
   // ═══════════════════════════════════════════
-  // DASHBOARD OBJECTIFS ELEVES
+  // DASHBOARD OBJECTIFS — PRESENTATION COLLECTIVE
   // ═══════════════════════════════════════════
-  var objDashboardData = [];
+  var dashEleves = {};  // {code: {code,prenom,classe,visible,objectifs:[],passeport:{COG,EMO,SOC},totalCycles}}
+  var dashView = 'cards';
+  var dashPresenting = false;
+
+  function getPrenom(code) {
+    var local = localNamesCache[code];
+    return local && local.prenom ? local.prenom : code;
+  }
+
+  function objStatus(obj) {
+    if (obj.done) return { label: 'Fait', cls: 'success' };
+    if (obj.date_cible) {
+      var t = new Date(); t.setHours(0, 0, 0, 0);
+      var x = new Date(obj.date_cible); x.setHours(0, 0, 0, 0);
+      if (x < t) return { label: 'Expiré', cls: 'danger' };
+    }
+    return { label: 'En cours', cls: 'warn' };
+  }
+
+  function domainFromObj(obj) {
+    var t = (obj.type || obj.domaine || '').toUpperCase();
+    if (t === 'COG' || t === 'EMO' || t === 'SOC') return t;
+    return 'NEU';
+  }
 
   function loadObjectifsDashboard() {
-    var el = document.getElementById('obj-dashboard-list');
+    var el = document.getElementById('dash-content');
     if (!el) return;
     var codes = Object.keys(registreCache);
-    if (!codes.length) { el.innerHTML = '<tr><td colspan="5" class="muted">Aucun élève enregistré</td></tr>'; return; }
-    el.innerHTML = '<tr><td colspan="5">Chargement de ' + codes.length + ' élèves...</td></tr>';
-    objDashboardData = [];
+    if (!codes.length) { el.innerHTML = '<div class="dash-empty">Aucun eleve enregistre</div>'; return; }
+    el.innerHTML = '<div class="dash-empty">Chargement de ' + codes.length + ' eleves...</div>';
+    dashEleves = {};
     var done = 0;
     codes.forEach(function (code) {
-      firebase.database().ref(REF_ELEVES + '/' + code + '/objectifs').once('value').then(function (snap) {
-        if (snap.exists()) {
-          var classe = (registreCache[code] && registreCache[code].classe || '').toUpperCase();
-          snap.forEach(function (child) {
-            var obj = child.val();
-            var valCount = obj.validations_count || 0;
-            var status = 'En cours';
-            var statusCls = 'warn';
-            if (obj.done) { status = 'Fait'; statusCls = 'success'; }
-            else if (obj.date_cible) {
-              var t = new Date(); t.setHours(0, 0, 0, 0);
-              var x = new Date(obj.date_cible); x.setHours(0, 0, 0, 0);
-              if (x < t) { status = 'Expiré'; statusCls = 'danger'; }
-            }
-            objDashboardData.push({
-              code: code, classe: classe,
-              titre: obj.titre || '(sans titre)',
-              stars: valCount, status: status, statusCls: statusCls,
-              date_cible: obj.date_cible || '—',
-              hidden: false
-            });
+      var classe = (registreCache[code] && registreCache[code].classe || '').toUpperCase();
+      dashEleves[code] = { code: code, prenom: getPrenom(code), classe: classe, visible: true, objectifs: [], passeport: { COG: 0, EMO: 0, SOC: 0 }, totalCycles: 0 };
+      firebase.database().ref(REF_ELEVES + '/' + code).once('value').then(function (snap) {
+        var data = snap.val() || {};
+        var objs = data.objectifs || {};
+        Object.keys(objs).forEach(function (k) {
+          var o = objs[k];
+          var st = objStatus(o);
+          var dom = domainFromObj(o);
+          dashEleves[code].objectifs.push({
+            titre: o.titre || '(sans titre)',
+            stars: o.validations_count || 0,
+            status: st.label, statusCls: st.cls,
+            domaine: dom,
+            spe_label: o.spe_label || '',
+            date_cible: o.date_cible || ''
           });
-        }
+        });
+        var passport = data.passeport || {};
+        Object.keys(passport).forEach(function (speCode) {
+          var p = passport[speCode];
+          var cycles = p.cycles_count || 0;
+          var sc = speCode.toUpperCase();
+          if (sc.indexOf('C1') === 0) dashEleves[code].passeport.COG += cycles;
+          else if (sc.indexOf('C2') === 0) dashEleves[code].passeport.EMO += cycles;
+          else if (sc.indexOf('C3') === 0) dashEleves[code].passeport.SOC += cycles;
+          dashEleves[code].totalCycles += cycles;
+        });
         done++;
-        if (done >= codes.length) {
-          populateObjClasseFilter();
-          renderObjDashboard();
-        }
-      }).catch(function () { done++; if (done >= codes.length) { populateObjClasseFilter(); renderObjDashboard(); } });
+        if (done >= codes.length) { populateObjClasseFilter(); renderDashChips(); renderDashboard(); }
+      }).catch(function () { done++; if (done >= codes.length) { populateObjClasseFilter(); renderDashChips(); renderDashboard(); } });
     });
   }
 
@@ -2490,7 +2515,7 @@
     var sel = document.getElementById('obj-classe-filter');
     if (!sel) return;
     var classes = {};
-    objDashboardData.forEach(function (r) { if (r.classe) classes[r.classe] = true; });
+    Object.values(dashEleves).forEach(function (e) { if (e.classe) classes[e.classe] = true; });
     var sorted = Object.keys(classes).sort();
     sel.innerHTML = '<option value="ALL">Toutes les classes</option>';
     sorted.forEach(function (c) {
@@ -2498,37 +2523,113 @@
     });
   }
 
-  function renderObjDashboard() {
-    var el = document.getElementById('obj-dashboard-list');
+  function renderDashChips() {
+    var el = document.getElementById('dash-chips');
     if (!el) return;
     var filter = (document.getElementById('obj-classe-filter') || {}).value || 'ALL';
-    var filtered = objDashboardData.filter(function (r) {
-      if (r.hidden) return false;
-      return filter === 'ALL' || r.classe === filter;
-    });
-    document.getElementById('obj-count').textContent = filtered.length + ' objectif(s)';
-    if (!filtered.length) { el.innerHTML = '<tr><td colspan="5" class="muted">Aucun objectif</td></tr>'; return; }
-    var starsHtml = function (n) {
-      var s = '';
-      for (var i = 0; i < 5; i++) s += '<span style="color:' + (i < n ? '#fbbf24' : '#e2e8f0') + '">★</span>';
-      return s + ' ' + n + '/5';
-    };
-    el.innerHTML = filtered.map(function (r) {
-      return '<tr><td>' + escapeHtml(r.code) + '</td><td>' + escapeHtml(r.titre) + '</td><td>' + starsHtml(r.stars) + '</td><td><span class="badge ' + r.statusCls + '">' + r.status + '</span></td><td>' + escapeHtml(r.date_cible) + '</td></tr>';
+    var eleves = Object.values(dashEleves).filter(function (e) {
+      return (filter === 'ALL' || e.classe === filter) && e.objectifs.length > 0;
+    }).sort(function (a, b) { return a.prenom.localeCompare(b.prenom); });
+    el.innerHTML = eleves.map(function (e) {
+      return '<span class="dash-chip' + (e.visible ? '' : ' hidden-eleve') + '" onclick="toggleDashEleve(\'' + escapeHtml(e.code) + '\')">' + (e.visible ? '☑' : '☐') + ' ' + escapeHtml(e.prenom) + '</span>';
     }).join('');
   }
 
-  function toggleObjStudentVisibility(code) {
-    objDashboardData.forEach(function (r) {
-      if (r.code === code) r.hidden = !r.hidden;
-    });
-    renderObjDashboard();
+  function starsHtml(n) {
+    var s = '';
+    for (var i = 0; i < 5; i++) s += '<span class="' + (i < n ? '' : 'off') + '">★</span>';
+    return s + ' ' + n + '/5';
   }
+
+  function renderDashboard() {
+    var filter = (document.getElementById('obj-classe-filter') || {}).value || 'ALL';
+    var eleves = Object.values(dashEleves).filter(function (e) {
+      return e.visible && (filter === 'ALL' || e.classe === filter) && e.objectifs.length > 0;
+    }).sort(function (a, b) { return a.prenom.localeCompare(b.prenom); });
+
+    var countEl = document.getElementById('obj-count');
+    if (countEl) countEl.textContent = eleves.length + ' eleve(s)';
+    var subtitle = document.getElementById('dash-present-subtitle');
+    if (subtitle) subtitle.textContent = eleves.length + ' eleve(s) — ' + (filter === 'ALL' ? 'Toutes les classes' : filter);
+
+    var html = '';
+    if (!eleves.length) {
+      html = '<div class="dash-empty">Aucun objectif a afficher</div>';
+    } else if (dashView === 'cards') {
+      html = renderDashCards(eleves);
+    } else {
+      html = renderDashTable(eleves);
+    }
+
+    var el = document.getElementById('dash-content');
+    if (el) el.innerHTML = html;
+    var pel = document.getElementById('dash-present-content');
+    if (pel) pel.innerHTML = html;
+  }
+
+  function renderDashCards(eleves) {
+    return '<div class="dash-grid">' + eleves.map(function (e) {
+      var objsHtml = e.objectifs.map(function (o) {
+        var domCls = o.domaine.toLowerCase();
+        var domLabels = { cog: 'Cognitif', emo: 'Emotionnel', soc: 'Social', neu: '' };
+        return '<div class="dash-obj"><span class="dash-obj-title">' + escapeHtml(o.titre) + '</span>'
+          + '<div class="dash-obj-meta"><span class="dash-stars">' + starsHtml(o.stars) + '</span>'
+          + '<span class="dash-status ' + o.statusCls + '">' + o.status + '</span>'
+          + (domLabels[domCls] ? '<span class="dash-badge ' + domCls + '">' + domLabels[domCls] + '</span>' : '')
+          + '</div></div>';
+      }).join('');
+      var passHtml = '<div class="dash-passport">'
+        + '<span class="dash-cycle cog">💭 ' + e.passeport.COG + '</span>'
+        + '<span class="dash-cycle emo">🌟 ' + e.passeport.EMO + '</span>'
+        + '<span class="dash-cycle soc">💬 ' + e.passeport.SOC + '</span>'
+        + '</div>';
+      return '<div class="dash-card"><div class="dash-name">' + escapeHtml(e.prenom) + '</div>'
+        + '<div class="dash-objectifs">' + objsHtml + '</div>' + passHtml + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function renderDashTable(eleves) {
+    var rows = '';
+    eleves.forEach(function (e) {
+      e.objectifs.forEach(function (o, i) {
+        var domCls = o.domaine.toLowerCase();
+        var domLabels = { cog: 'Cognitif', emo: 'Emotionnel', soc: 'Social', neu: '—' };
+        rows += '<tr><td>' + (i === 0 ? escapeHtml(e.prenom) : '') + '</td>'
+          + '<td>' + escapeHtml(o.titre) + '</td>'
+          + '<td><span class="dash-stars">' + starsHtml(o.stars) + '</span></td>'
+          + '<td><span class="dash-status ' + o.statusCls + '">' + o.status + '</span></td>'
+          + '<td><span class="dash-badge ' + domCls + '">' + (domLabels[domCls] || '') + '</span></td>'
+          + '<td>' + e.passeport.COG + '/' + e.passeport.EMO + '/' + e.passeport.SOC + '</td></tr>';
+      });
+    });
+    return '<div class="table-wrap" style="max-height:500px;overflow-y:auto"><table><thead><tr><th>Eleve</th><th>Objectif</th><th>Etoiles</th><th>Statut</th><th>Axe CPS</th><th>Cycles COG/EMO/SOC</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  window.toggleDashEleve = function (code) {
+    if (dashEleves[code]) dashEleves[code].visible = !dashEleves[code].visible;
+    renderDashChips();
+    renderDashboard();
+  };
+
+  window.setDashView = function (v) {
+    dashView = v;
+    var bc = document.getElementById('btn-view-cards');
+    var bt = document.getElementById('btn-view-table');
+    if (bc) bc.className = v === 'cards' ? 'active' : '';
+    if (bt) bt.className = v === 'table' ? 'active' : '';
+    renderDashboard();
+  };
+
+  window.togglePresentation = function () {
+    dashPresenting = !dashPresenting;
+    document.body.classList.toggle('presenting', dashPresenting);
+    if (dashPresenting) renderDashboard();
+  };
 
   var elBtnRefreshObj = document.getElementById('btn-refresh-objectifs');
   if (elBtnRefreshObj) elBtnRefreshObj.addEventListener('click', function () { if (!unlocked) return; loadObjectifsDashboard(); });
   var elObjClasseFilter = document.getElementById('obj-classe-filter');
-  if (elObjClasseFilter) elObjClasseFilter.addEventListener('change', function () { renderObjDashboard(); });
+  if (elObjClasseFilter) elObjClasseFilter.addEventListener('change', function () { renderDashChips(); renderDashboard(); });
 
   boot();
 })();
