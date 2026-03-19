@@ -348,6 +348,24 @@ tr:last-child td { border-bottom: none; }
       <p>Gestion des codes d'acces et suivi des eleves.</p>
     </div>
 
+    <!-- ===== DASHBOARD OBJECTIFS (pleine largeur, visible en haut) ===== -->
+    <div class="card" style="margin-bottom:14px;">
+      <h2>🎯 Dashboard Objectifs élèves</h2>
+      <div class="row" style="margin-bottom:8px; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="obj-classe-filter" class="select" style="max-width:200px">
+          <option value="ALL">Toutes les classes</option>
+        </select>
+        <button class="btn primary" id="btn-refresh-objectifs">Actualiser</button>
+        <span class="small muted" id="obj-count">—</span>
+      </div>
+      <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+        <table>
+          <thead><tr><th>Élève</th><th>Objectif</th><th>Étoiles</th><th>Statut</th><th>Échéance</th></tr></thead>
+          <tbody id="obj-dashboard-list"><tr><td colspan="5" class="muted">Déverrouille le cockpit puis clique sur Actualiser</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="grid">
       <div>
         <!-- 1. Connexion enseignant -->
@@ -595,24 +613,6 @@ tr:last-child td { border-bottom: none; }
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- ===== DASHBOARD OBJECTIFS ===== -->
-      <div class="card" style="margin-bottom:14px; grid-column: 1 / -1;">
-        <h2>🎯 Dashboard Objectifs élèves</h2>
-        <div class="row" style="margin-bottom:8px; gap:8px; align-items:center; flex-wrap:wrap;">
-          <select id="obj-classe-filter" class="select" style="max-width:200px">
-            <option value="ALL">Toutes les classes</option>
-          </select>
-          <button class="btn primary" id="btn-refresh-objectifs">Actualiser</button>
-          <span class="small muted" id="obj-count">—</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Élève</th><th>Objectif</th><th>Étoiles</th><th>Statut</th><th>Échéance</th></tr></thead>
-            <tbody id="obj-dashboard-list"><tr><td colspan="5" class="muted">Cliquer sur Actualiser</td></tr></tbody>
-          </table>
         </div>
       </div>
 
