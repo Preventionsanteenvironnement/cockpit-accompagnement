@@ -2448,37 +2448,41 @@
   function loadObjectifsDashboard() {
     var el = document.getElementById('obj-dashboard-list');
     if (!el) return;
-    el.innerHTML = '<tr><td colspan="5">Chargement...</td></tr>';
-    firebase.database().ref(REF_ELEVES).once('value').then(function (snap) {
-      objDashboardData = [];
-      if (!snap.exists()) { el.innerHTML = '<tr><td colspan="5" class="muted">Aucune donnée</td></tr>'; return; }
-      snap.forEach(function (child) {
-        var code = child.key;
-        var data = child.val();
-        if (!data.objectifs) return;
-        var classe = (data.classe || '').toUpperCase();
-        Object.keys(data.objectifs).forEach(function (k) {
-          var obj = data.objectifs[k];
-          var valCount = obj.validations_count || 0;
-          var status = 'En cours';
-          var statusCls = 'warn';
-          if (obj.done) { status = 'Fait'; statusCls = 'success'; }
-          else if (obj.date_cible) {
-            var t = new Date(); t.setHours(0, 0, 0, 0);
-            var x = new Date(obj.date_cible); x.setHours(0, 0, 0, 0);
-            if (x < t) { status = 'Expiré'; statusCls = 'danger'; }
-          }
-          objDashboardData.push({
-            code: code, classe: classe,
-            titre: obj.titre || '(sans titre)',
-            stars: valCount, status: status, statusCls: statusCls,
-            date_cible: obj.date_cible || '—',
-            hidden: false
+    var codes = Object.keys(registreCache);
+    if (!codes.length) { el.innerHTML = '<tr><td colspan="5" class="muted">Aucun élève enregistré</td></tr>'; return; }
+    el.innerHTML = '<tr><td colspan="5">Chargement de ' + codes.length + ' élèves...</td></tr>';
+    objDashboardData = [];
+    var done = 0;
+    codes.forEach(function (code) {
+      firebase.database().ref(REF_ELEVES + '/' + code + '/objectifs').once('value').then(function (snap) {
+        if (snap.exists()) {
+          var classe = (registreCache[code] && registreCache[code].classe || '').toUpperCase();
+          snap.forEach(function (child) {
+            var obj = child.val();
+            var valCount = obj.validations_count || 0;
+            var status = 'En cours';
+            var statusCls = 'warn';
+            if (obj.done) { status = 'Fait'; statusCls = 'success'; }
+            else if (obj.date_cible) {
+              var t = new Date(); t.setHours(0, 0, 0, 0);
+              var x = new Date(obj.date_cible); x.setHours(0, 0, 0, 0);
+              if (x < t) { status = 'Expiré'; statusCls = 'danger'; }
+            }
+            objDashboardData.push({
+              code: code, classe: classe,
+              titre: obj.titre || '(sans titre)',
+              stars: valCount, status: status, statusCls: statusCls,
+              date_cible: obj.date_cible || '—',
+              hidden: false
+            });
           });
-        });
-      });
-      populateObjClasseFilter();
-      renderObjDashboard();
+        }
+        done++;
+        if (done >= codes.length) {
+          populateObjClasseFilter();
+          renderObjDashboard();
+        }
+      }).catch(function () { done++; if (done >= codes.length) { populateObjClasseFilter(); renderObjDashboard(); } });
     });
   }
 
