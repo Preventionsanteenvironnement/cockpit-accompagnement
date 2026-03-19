@@ -23,6 +23,7 @@
   const REF_TEACHER_CODES = DB_ROOT + '/config/teacher_codes';
   const REF_STUDENT_REGISTRY = DB_ROOT + '/config/student_registry';
   const REF_CUSTOM_SPECIAL_REGISTRY = DB_ROOT + '/config/custom_special_codes';
+  const REF_SUGGESTIONS = DB_ROOT + '/suggestions';
 
   // Codes de deverrouillage obfusques (CPS2026, PROFPSE, INVITE)
   var UNLOCK_CODES_B64 = ['Q1BTMjAyNg==', 'UFJPRlBTRQ==', 'SU5WSVRF'];
@@ -1217,8 +1218,8 @@
     bodyEl.querySelectorAll('tr[data-day]').forEach(function (tr) {
       var day = tr.dataset.day;
       if (!day) return;
-      var active = !!tr.querySelector('.schedule-active');
-      active = active && tr.querySelector('.schedule-active').checked;
+      var cb = tr.querySelector('.schedule-active');
+      var active = cb ? cb.checked : true;
       var debut = normalizeTime(tr.querySelector('.schedule-start') ? tr.querySelector('.schedule-start').value : '', '00:00');
       var fin = normalizeTime(tr.querySelector('.schedule-end') ? tr.querySelector('.schedule-end').value : '', '23:59');
       out[day] = { actif: active, debut: debut, fin: fin };
@@ -2413,6 +2414,117 @@
     loadGlobalSchedule();
     initQrScanner();
   }
+
+  // ═══════════════════════════════════════════
+  // SUGGESTIONS VIEWER
+  // ═══════════════════════════════════════════
+  function loadSuggestions() {
+    var el = document.getElementById('suggestions-list');
+    if (!el) return;
+    el.innerHTML = '<tr><td colspan="3">Chargement...</td></tr>';
+    firebase.database().ref(REF_SUGGESTIONS).orderByChild('timestamp').once('value').then(function (snap) {
+      if (!snap.exists()) { el.innerHTML = '<tr><td colspan="3" class="muted">Aucune suggestion</td></tr>'; return; }
+      var rows = [];
+      snap.forEach(function (child) {
+        var s = child.val();
+        rows.push({ key: child.key, code: s.code || '?', text: s.text || '', ts: s.timestamp || '' });
+      });
+      rows.reverse();
+      el.innerHTML = rows.map(function (r) {
+        var d = r.ts ? new Date(r.ts).toLocaleDateString('fr-FR') : '—';
+        return '<tr><td>' + escapeHtml(r.code) + '</td><td>' + escapeHtml(r.text) + '</td><td>' + d + '</td></tr>';
+      }).join('');
+    });
+  }
+
+  var elBtnSuggestions = document.getElementById('btn-load-suggestions');
+  if (elBtnSuggestions) elBtnSuggestions.addEventListener('click', function () { if (!unlocked) return; loadSuggestions(); });
+
+  // ═══════════════════════════════════════════
+  // DASHBOARD OBJECTIFS ELEVES
+  // ═══════════════════════════════════════════
+  var objDashboardData = [];
+
+  function loadObjectifsDashboard() {
+    var el = document.getElementById('obj-dashboard-list');
+    if (!el) return;
+    el.innerHTML = '<tr><td colspan="5">Chargement...</td></tr>';
+    firebase.database().ref(REF_ELEVES).once('value').then(function (snap) {
+      objDashboardData = [];
+      if (!snap.exists()) { el.innerHTML = '<tr><td colspan="5" class="muted">Aucune donnée</td></tr>'; return; }
+      snap.forEach(function (child) {
+        var code = child.key;
+        var data = child.val();
+        if (!data.objectifs) return;
+        var classe = (data.classe || '').toUpperCase();
+        Object.keys(data.objectifs).forEach(function (k) {
+          var obj = data.objectifs[k];
+          var valCount = obj.validations_count || 0;
+          var status = 'En cours';
+          var statusCls = 'warn';
+          if (obj.done) { status = 'Fait'; statusCls = 'success'; }
+          else if (obj.date_cible) {
+            var t = new Date(); t.setHours(0, 0, 0, 0);
+            var x = new Date(obj.date_cible); x.setHours(0, 0, 0, 0);
+            if (x < t) { status = 'Expiré'; statusCls = 'danger'; }
+          }
+          objDashboardData.push({
+            code: code, classe: classe,
+            titre: obj.titre || '(sans titre)',
+            stars: valCount, status: status, statusCls: statusCls,
+            date_cible: obj.date_cible || '—',
+            hidden: false
+          });
+        });
+      });
+      populateObjClasseFilter();
+      renderObjDashboard();
+    });
+  }
+
+  function populateObjClasseFilter() {
+    var sel = document.getElementById('obj-classe-filter');
+    if (!sel) return;
+    var classes = {};
+    objDashboardData.forEach(function (r) { if (r.classe) classes[r.classe] = true; });
+    var sorted = Object.keys(classes).sort();
+    sel.innerHTML = '<option value="ALL">Toutes les classes</option>';
+    sorted.forEach(function (c) {
+      sel.innerHTML += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>';
+    });
+  }
+
+  function renderObjDashboard() {
+    var el = document.getElementById('obj-dashboard-list');
+    if (!el) return;
+    var filter = (document.getElementById('obj-classe-filter') || {}).value || 'ALL';
+    var filtered = objDashboardData.filter(function (r) {
+      if (r.hidden) return false;
+      return filter === 'ALL' || r.classe === filter;
+    });
+    document.getElementById('obj-count').textContent = filtered.length + ' objectif(s)';
+    if (!filtered.length) { el.innerHTML = '<tr><td colspan="5" class="muted">Aucun objectif</td></tr>'; return; }
+    var starsHtml = function (n) {
+      var s = '';
+      for (var i = 0; i < 5; i++) s += '<span style="color:' + (i < n ? '#fbbf24' : '#e2e8f0') + '">★</span>';
+      return s + ' ' + n + '/5';
+    };
+    el.innerHTML = filtered.map(function (r) {
+      return '<tr><td>' + escapeHtml(r.code) + '</td><td>' + escapeHtml(r.titre) + '</td><td>' + starsHtml(r.stars) + '</td><td><span class="badge ' + r.statusCls + '">' + r.status + '</span></td><td>' + escapeHtml(r.date_cible) + '</td></tr>';
+    }).join('');
+  }
+
+  function toggleObjStudentVisibility(code) {
+    objDashboardData.forEach(function (r) {
+      if (r.code === code) r.hidden = !r.hidden;
+    });
+    renderObjDashboard();
+  }
+
+  var elBtnRefreshObj = document.getElementById('btn-refresh-objectifs');
+  if (elBtnRefreshObj) elBtnRefreshObj.addEventListener('click', function () { if (!unlocked) return; loadObjectifsDashboard(); });
+  var elObjClasseFilter = document.getElementById('obj-classe-filter');
+  if (elObjClasseFilter) elObjClasseFilter.addEventListener('change', function () { renderObjDashboard(); });
 
   boot();
 })();

@@ -598,6 +598,24 @@ tr:last-child td { border-bottom: none; }
         </div>
       </div>
 
+      <!-- ===== DASHBOARD OBJECTIFS ===== -->
+      <div class="card" style="margin-bottom:14px; grid-column: 1 / -1;">
+        <h2>🎯 Dashboard Objectifs élèves</h2>
+        <div class="row" style="margin-bottom:8px; gap:8px; align-items:center; flex-wrap:wrap;">
+          <select id="obj-classe-filter" class="select" style="max-width:200px">
+            <option value="ALL">Toutes les classes</option>
+          </select>
+          <button class="btn primary" id="btn-refresh-objectifs">Actualiser</button>
+          <span class="small muted" id="obj-count">—</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Élève</th><th>Objectif</th><th>Étoiles</th><th>Statut</th><th>Échéance</th></tr></thead>
+            <tbody id="obj-dashboard-list"><tr><td colspan="5" class="muted">Cliquer sur Actualiser</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ===== SIDEBAR ===== -->
       <div>
         <div class="card" id="sec-eleve" style="margin-bottom:14px; display:none;">
@@ -626,6 +644,17 @@ tr:last-child td { border-bottom: none; }
         <div class="card">
           <h2>Scan QR</h2>
           <div id="qr-reader"></div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <h2>💬 Suggestions élèves</h2>
+          <button class="btn" id="btn-load-suggestions" style="margin-bottom:8px">Charger</button>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Code</th><th>Message</th><th>Date</th></tr></thead>
+              <tbody id="suggestions-list"><tr><td colspan="3" class="muted">Cliquer sur Charger</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
