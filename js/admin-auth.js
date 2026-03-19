@@ -97,6 +97,7 @@
   var elLocalNamesStatus = document.getElementById('local-names-status');
   var elLocalNamesStatusRow = document.getElementById('local-names-status-row');
   var btnDownloadLocalNames = document.getElementById('btn-download-local-names');
+  var btnRecoverOrphans = document.getElementById('btn-recover-orphans');
   var elSpecialLabel = document.getElementById('special-label');
   var elSpecialCode = document.getElementById('special-code');
   var btnGenerateSpecial = document.getElementById('btn-generate-special');
@@ -149,6 +150,24 @@
 
   var registreCache = {};       // { code: { code, classe, autorise, created_at } }
   var localNamesCache = {};     // { CODE: { prenom, nom } } — from local file only (RGPD)
+
+  // Persist names in localStorage so they survive browser close
+  function saveLocalNames() {
+    try { localStorage.setItem('cockpit_local_names', JSON.stringify(localNamesCache)); } catch (e) { /* quota */ }
+  }
+  function loadLocalNames() {
+    try {
+      var stored = localStorage.getItem('cockpit_local_names');
+      if (stored) {
+        var parsed = JSON.parse(stored);
+        Object.keys(parsed).forEach(function (k) {
+          if (!localNamesCache[k]) localNamesCache[k] = parsed[k];
+        });
+      }
+    } catch (e) { /* ignore */ }
+  }
+  // Load immediately on startup
+  loadLocalNames();
   var autorisationsCache = {};  // { code: { autorise, special, label, ... } }
   var elevesCache = {};         // { code: { objectifs, meteo, ... } }
   var teacherCodesCache = [];   // Array of custom teacher codes from Firebase
@@ -459,10 +478,32 @@
     var now = Date.now();
     var generated = 0;
     var reused = 0;
+    var matched = 0;
+
+    // Build reverse lookup: "CLASSE|PRENOM|NOM" -> existing code
+    var nameToCode = {};
+    Object.keys(registreCache).forEach(function (existingCode) {
+      var reg = registreCache[existingCode];
+      var local = localNamesCache[existingCode] || {};
+      if (local.prenom || local.nom) {
+        var key = (reg.classe || '').toUpperCase() + '|' + (local.prenom || '').toUpperCase() + '|' + (local.nom || '').toUpperCase();
+        nameToCode[key] = existingCode;
+      }
+    });
 
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       var code = row.code || '';
+
+      // If no code in CSV, try to find existing student by name match
+      if (!code) {
+        var lookupKey = (row.classe || '').toUpperCase() + '|' + (row.prenom || '').toUpperCase() + '|' + (row.nom || '').toUpperCase();
+        if (nameToCode[lookupKey]) {
+          code = nameToCode[lookupKey];
+          matched++;
+        }
+      }
+
       if (!code) {
         code = generateStudentCode();
         if (!code) {
@@ -472,6 +513,10 @@
         generated++;
       } else {
         if (registreCache[code]) {
+          // Update name in cache even for existing codes
+          if (row.prenom || row.nom) {
+            localNamesCache[code] = { prenom: row.prenom || '', nom: row.nom || '' };
+          }
           reused++;
           continue; // Skip existing codes
         }
@@ -482,11 +527,12 @@
         localNamesCache[code] = { prenom: row.prenom || '', nom: row.nom || '' };
       }
       // Write to student registry (source of truth — no names)
+      var existingReg = registreCache[code];
       updates[REF_STUDENT_REGISTRY + '/' + code] = {
         classe: row.classe,
-        autorise: true,
-        created_at: now,
-        created_by: 'csv_import',
+        autorise: existingReg ? (existingReg.autorise !== false) : true,
+        created_at: existingReg ? (existingReg.created_at || now) : now,
+        created_by: existingReg ? (existingReg.created_by || 'csv_import') : 'csv_import',
         updated_at: now
       };
       // Write to autorisations (for student app backward compat)
@@ -497,18 +543,24 @@
     }
 
     var newCount = Object.keys(updates).filter(function (k) { return k.indexOf(REF_STUDENT_REGISTRY) === 0; }).length;
-    if (newCount === 0) {
-      setCsvStatus('Tous les codes existent deja. Rien a importer.', 'err');
+    if (newCount === 0 && matched === 0) {
+      var msg0 = 'Tous les codes existent deja.';
+      if (reused > 0) msg0 += ' ' + reused + ' noms mis a jour.';
+      setCsvStatus(msg0, reused > 0 ? 'ok' : 'err');
+      saveLocalNames();
       csvPendingRows = null;
       if (elCsvPreview) elCsvPreview.classList.add('hidden');
+      renderListeEleves();
       return;
     }
 
     scopedUpdate(updates).then(function () {
       var msg = newCount + ' eleve' + (newCount > 1 ? 's' : '') + ' importe' + (newCount > 1 ? 's' : '') + '.';
       if (generated > 0) msg += ' ' + generated + ' code' + (generated > 1 ? 's' : '') + ' genere' + (generated > 1 ? 's' : '') + '.';
+      if (matched > 0) msg += ' ' + matched + ' retrouve' + (matched > 1 ? 's' : '') + ' par nom (code conserve).';
       if (reused > 0) msg += ' ' + reused + ' deja existant' + (reused > 1 ? 's' : '') + '.';
       setCsvStatus(msg, 'ok');
+      saveLocalNames();
       offerLocalNameDownload();
       csvPendingRows = null;
       if (elCsvPreview) elCsvPreview.classList.add('hidden');
@@ -615,6 +667,7 @@
       }
 
       setLocalNamesStatus(loaded + ' noms charges en memoire locale.', 'ok');
+      saveLocalNames();
       renderListeEleves();
       renderCustomEleveOptions();
       if (selectedAccCode) openEleve(selectedAccCode);
@@ -622,6 +675,67 @@
       console.error(e);
       setLocalNamesStatus('Erreur de lecture du fichier.', 'err');
     });
+  }
+
+  // ═══════════════════════════════════════════
+  // RECOVER ORPHANED CODES
+  // ═══════════════════════════════════════════
+  function recoverOrphanCodes() {
+    if (!unlocked) {
+      setOrphanStatus('Deverrouille le cockpit d\'abord.', 'err');
+      return;
+    }
+    setOrphanStatus('Recherche en cours...', 'ok');
+
+    // Read all autorisations to find codes with is_student that aren't in registry
+    firebase.database().ref(REF_AUTORISATIONS).once('value').then(function (snap) {
+      var auths = snap.val() || {};
+      var orphans = [];
+
+      Object.keys(auths).forEach(function (code) {
+        var auth = auths[code];
+        if (auth && auth.is_student && !registreCache[code]) {
+          orphans.push(code);
+        }
+      });
+
+      if (orphans.length === 0) {
+        setOrphanStatus('Aucun code orphelin trouve. Tout est en ordre.', 'ok');
+        return;
+      }
+
+      // Add orphans back to registry
+      var updates = {};
+      var now = Date.now();
+      orphans.forEach(function (code) {
+        updates[REF_STUDENT_REGISTRY + '/' + code] = {
+          classe: 'RECUPERE',
+          autorise: true,
+          created_at: now,
+          created_by: 'orphan_recovery',
+          updated_at: now
+        };
+      });
+
+      scopedUpdate(updates).then(function () {
+        setOrphanStatus(orphans.length + ' code' + (orphans.length > 1 ? 's' : '') + ' recupere' + (orphans.length > 1 ? 's' : '') + ' : ' + orphans.join(', ') + '. Classe = RECUPERE (modifiable).', 'ok');
+        renderListeEleves();
+      }).catch(function (e) {
+        console.error(e);
+        setOrphanStatus('Erreur Firebase lors de la recuperation.', 'err');
+      });
+    }).catch(function (e) {
+      console.error(e);
+      setOrphanStatus('Erreur de lecture Firebase.', 'err');
+    });
+  }
+
+  function setOrphanStatus(msg, type) {
+    var el = document.getElementById('orphan-status');
+    if (el) {
+      el.textContent = msg;
+      el.style.color = type === 'err' ? '#dc2626' : '#059669';
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -664,6 +778,7 @@
       // Store name locally only (RGPD)
       if (prenom || nom) {
         localNamesCache[code] = { prenom: prenom, nom: nom };
+        saveLocalNames();
       }
       // Write to student registry (source of truth — no names)
       updates[REF_STUDENT_REGISTRY + '/' + code] = {
@@ -750,6 +865,7 @@
     if (localNamesCache[old]) {
       localNamesCache[nw] = localNamesCache[old];
       delete localNamesCache[old];
+      saveLocalNames();
     }
 
     // 2. Move autorisation entry (for student app backward compat)
@@ -2321,6 +2437,7 @@
       });
     }
     if (btnDownloadLocalNames) btnDownloadLocalNames.addEventListener('click', downloadLocalNamesCsv);
+    if (btnRecoverOrphans) btnRecoverOrphans.addEventListener('click', recoverOrphanCodes);
 
     // Students
     if (btnAddStudent) btnAddStudent.addEventListener('click', showAddStudentModal);
