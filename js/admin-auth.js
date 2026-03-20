@@ -1,5 +1,5 @@
 // Cockpit accompagnement (enseignant)
-// - Registre eleves dynamique dans Firebase (autorisations avec is_student)
+// - Registre eleves dynamique dans Firebase (student_registry + autorisations)
 // - Import CSV → generation de codes → ecriture Firebase
 // - Gestion codes : modifier, activer/desactiver, supprimer, masse
 // - Codes partages (PROFPSE, INVITE, custom)
@@ -537,8 +537,7 @@
       };
       // Write to autorisations (for student app backward compat)
       updates[REF_AUTORISATIONS + '/' + code] = {
-        autorise: true,
-        is_student: true
+        autorise: true
       };
     }
 
@@ -751,8 +750,7 @@
           updated_at: now
         };
         updates[REF_AUTORISATIONS + '/' + code] = {
-          autorise: true,
-          is_student: true
+          autorise: true
         };
       });
 
@@ -880,8 +878,7 @@
       };
       // Write to autorisations (for student app backward compat)
       updates[REF_AUTORISATIONS + '/' + code] = {
-        autorise: true,
-        is_student: true
+        autorise: true
       };
 
       scopedUpdate(updates).then(function () {
@@ -960,8 +957,7 @@
 
     // 2. Move autorisation entry (for student app backward compat)
     updates[REF_AUTORISATIONS + '/' + nw] = {
-      autorise: student.autorise !== false,
-      is_student: true
+      autorise: student.autorise !== false
     };
     updates[REF_AUTORISATIONS + '/' + old] = null;
 
