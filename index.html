@@ -477,9 +477,17 @@ body.presenting .dash-present-subtitle{font-size:.82rem;color:rgba(255,255,255,.
             <button class="btn small" id="btn-download-local-names">Telecharger DataEleves.csv</button>
           </div>
           <hr style="margin:12px 0; border:none; border-top:1px solid #e5e7eb;">
-          <h3 style="font-size:0.9rem; font-weight:800; margin:0 0 6px;">&#128269; Recuperer codes orphelins</h3>
-          <p class="muted" style="margin:0 0 8px; font-size:0.82rem;">Si des eleves ont deja travaille avec un code qui n'apparait plus dans ta liste, ce bouton les retrouve dans Firebase et les rajoute.</p>
-          <button class="btn" id="btn-recover-orphans">Rechercher codes orphelins</button>
+          <h3 style="font-size:0.9rem; font-weight:800; margin:0 0 6px;">&#128269; Gestion des codes</h3>
+          <p class="muted" style="margin:0 0 8px; font-size:0.82rem;">Entre les codes de tes vrais eleves (separes par des virgules).</p>
+          <input type="text" id="orphan-codes-input" class="input" placeholder="Ex: BX24, JN76, NG37, QB42, RA56, WR92" style="width:100%; margin-bottom:8px; font-family:monospace; text-transform:uppercase;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn success" id="btn-recover-orphans">Recuperer ces codes</button>
+            <button class="btn danger" id="btn-purge-codes">Ne garder QUE ces codes</button>
+          </div>
+          <p class="muted" style="margin:6px 0 0; font-size:0.78rem;">
+            <strong>Recuperer</strong> = ajouter ces codes a ta liste s'ils manquent.<br>
+            <strong>Ne garder QUE</strong> = supprimer TOUS les autres codes (nettoyage).
+          </p>
           <p class="status" id="orphan-status" style="margin-top:8px;"></p>
         </div>
 

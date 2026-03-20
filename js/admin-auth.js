@@ -685,48 +685,138 @@
       setOrphanStatus('Deverrouille le cockpit d\'abord.', 'err');
       return;
     }
-    setOrphanStatus('Recherche en cours...', 'ok');
+    var input = document.getElementById('orphan-codes-input');
+    var raw = input ? input.value.trim() : '';
+    if (!raw) {
+      setOrphanStatus('Entre les codes a recuperer (ex: BX24, JN76, NG37).', 'err');
+      return;
+    }
 
-    // Read all autorisations to find codes with is_student that aren't in registry
-    firebase.database().ref(REF_AUTORISATIONS).once('value').then(function (snap) {
-      var auths = snap.val() || {};
-      var orphans = [];
+    // Parse comma/space separated codes
+    var codes = raw.toUpperCase().replace(/[^A-Z0-9,;\s]/g, '').split(/[,;\s]+/).filter(function (c) { return c.length >= 2; });
+    if (!codes.length) {
+      setOrphanStatus('Aucun code valide trouve.', 'err');
+      return;
+    }
 
-      Object.keys(auths).forEach(function (code) {
-        var auth = auths[code];
-        if (auth && auth.is_student && !registreCache[code]) {
-          orphans.push(code);
+    setOrphanStatus('Verification de ' + codes.length + ' code(s)...', 'ok');
+
+    // Check each code individually in Firebase (no bulk read needed)
+    var promises = codes.map(function (code) {
+      return firebase.database().ref(REF_AUTORISATIONS + '/' + code).once('value').then(function (snap) {
+        return { code: code, exists: snap.exists(), val: snap.val() };
+      }).catch(function () {
+        // Try reading eleves data directly
+        return firebase.database().ref(REF_ELEVES + '/' + code).once('value').then(function (snap2) {
+          return { code: code, exists: snap2.exists(), val: snap2.exists() ? { autorise: true } : null };
+        }).catch(function () {
+          return { code: code, exists: false, val: null };
+        });
+      });
+    });
+
+    Promise.all(promises).then(function (results) {
+      var toRecover = [];
+      var alreadyInList = [];
+      var notFound = [];
+
+      results.forEach(function (r) {
+        if (registreCache[r.code]) {
+          alreadyInList.push(r.code);
+        } else if (r.exists) {
+          toRecover.push(r.code);
+        } else {
+          notFound.push(r.code);
         }
       });
 
-      if (orphans.length === 0) {
-        setOrphanStatus('Aucun code orphelin trouve. Tout est en ordre.', 'ok');
+      if (toRecover.length === 0) {
+        var msg = '';
+        if (alreadyInList.length) msg += alreadyInList.join(', ') + ' deja dans la liste. ';
+        if (notFound.length) msg += notFound.join(', ') + ' non trouve(s) dans Firebase. ';
+        if (!msg) msg = 'Rien a recuperer.';
+        setOrphanStatus(msg, alreadyInList.length ? 'ok' : 'err');
         return;
       }
 
-      // Add orphans back to registry
+      var classeRecup = prompt('Quelle classe pour ces eleves ?\n(' + toRecover.join(', ') + ')', 'B2GATL2') || 'RECUPERE';
       var updates = {};
       var now = Date.now();
-      orphans.forEach(function (code) {
+      toRecover.forEach(function (code) {
         updates[REF_STUDENT_REGISTRY + '/' + code] = {
-          classe: 'RECUPERE',
+          classe: classeRecup,
           autorise: true,
           created_at: now,
           created_by: 'orphan_recovery',
           updated_at: now
         };
+        updates[REF_AUTORISATIONS + '/' + code] = {
+          autorise: true,
+          is_student: true
+        };
       });
 
       scopedUpdate(updates).then(function () {
-        setOrphanStatus(orphans.length + ' code' + (orphans.length > 1 ? 's' : '') + ' recupere' + (orphans.length > 1 ? 's' : '') + ' : ' + orphans.join(', ') + '. Classe = RECUPERE (modifiable).', 'ok');
+        var msg = toRecover.length + ' code(s) recupere(s) : ' + toRecover.join(', ') + ' → classe ' + classeRecup + '.';
+        if (alreadyInList.length) msg += ' ' + alreadyInList.join(', ') + ' deja dans la liste.';
+        if (notFound.length) msg += ' ' + notFound.join(', ') + ' non trouve(s).';
+        setOrphanStatus(msg, 'ok');
+        if (input) input.value = '';
         renderListeEleves();
       }).catch(function (e) {
         console.error(e);
         setOrphanStatus('Erreur Firebase lors de la recuperation.', 'err');
       });
+    });
+  }
+
+  // Purge all codes except specified ones
+  function purgeUnusedCodes() {
+    if (!unlocked) {
+      setOrphanStatus('Deverrouille le cockpit d\'abord.', 'err');
+      return;
+    }
+    var input = document.getElementById('orphan-codes-input');
+    var raw = input ? input.value.trim() : '';
+    if (!raw) {
+      setOrphanStatus('Entre les codes a GARDER (ex: BX24, JN76). Tous les autres seront supprimes.', 'err');
+      return;
+    }
+
+    var keepCodes = new Set(raw.toUpperCase().replace(/[^A-Z0-9,;\s]/g, '').split(/[,;\s]+/).filter(function (c) { return c.length >= 2; }));
+    if (!keepCodes.size) {
+      setOrphanStatus('Aucun code valide a garder.', 'err');
+      return;
+    }
+
+    // Find codes to delete
+    var toDelete = [];
+    Object.keys(registreCache).forEach(function (code) {
+      if (!keepCodes.has(code)) toDelete.push(code);
+    });
+
+    if (!toDelete.length) {
+      setOrphanStatus('Aucun code a supprimer (tous sont dans ta liste).', 'ok');
+      return;
+    }
+
+    if (!confirm('ATTENTION : Supprimer ' + toDelete.length + ' code(s) ?\n\nCodes supprimes : ' + toDelete.join(', ') + '\n\nCodes gardes : ' + Array.from(keepCodes).join(', ') + '\n\nCette action est irreversible.')) {
+      return;
+    }
+
+    var updates = {};
+    toDelete.forEach(function (code) {
+      updates[REF_STUDENT_REGISTRY + '/' + code] = null;
+      updates[REF_AUTORISATIONS + '/' + code] = null;
+    });
+
+    scopedUpdate(updates).then(function () {
+      setOrphanStatus(toDelete.length + ' code(s) supprime(s). ' + keepCodes.size + ' code(s) conserve(s).', 'ok');
+      if (input) input.value = '';
+      renderListeEleves();
     }).catch(function (e) {
       console.error(e);
-      setOrphanStatus('Erreur de lecture Firebase.', 'err');
+      setOrphanStatus('Erreur Firebase lors de la suppression.', 'err');
     });
   }
 
@@ -2438,6 +2528,8 @@
     }
     if (btnDownloadLocalNames) btnDownloadLocalNames.addEventListener('click', downloadLocalNamesCsv);
     if (btnRecoverOrphans) btnRecoverOrphans.addEventListener('click', recoverOrphanCodes);
+    var btnPurgeCodes = document.getElementById('btn-purge-codes');
+    if (btnPurgeCodes) btnPurgeCodes.addEventListener('click', purgeUnusedCodes);
 
     // Students
     if (btnAddStudent) btnAddStudent.addEventListener('click', showAddStudentModal);
