@@ -452,7 +452,7 @@ body.presenting .dash-present-subtitle{font-size:.82rem;color:rgba(255,255,255,.
         <!-- 2. Import CSV -->
         <div class="card" style="margin-bottom:14px;">
           <h2>&#128229; Importer des eleves</h2>
-          <p class="muted" style="margin-top:0;">Importe un CSV (classe;prenom;nom) pour creer les eleves et generer leurs codes d'acces. Les noms restent sur ton appareil uniquement (RGPD).</p>
+          <p class="muted" style="margin-top:0;">Importe ton fichier <strong>eleves_complet.csv</strong> (code;classe;prenom;nom). Si le CSV contient une colonne <em>code</em>, les codes existants sont reutilises. Les noms restent sur ton appareil uniquement (RGPD).</p>
           <div class="csv-drop-zone" id="csv-drop-zone">
             <p>&#128194; Glisse un fichier CSV ici ou clique pour choisir</p>
             <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none;">
@@ -460,7 +460,7 @@ body.presenting .dash-present-subtitle{font-size:.82rem;color:rgba(255,255,255,.
           <div id="csv-preview" class="hidden" style="margin-top:10px;">
             <div id="csv-preview-content" class="csv-preview-box"></div>
             <div class="row" style="margin-top:8px;">
-              <button class="btn success" id="btn-csv-import">Importer et generer les codes</button>
+              <button class="btn success" id="btn-csv-import">Importer les eleves</button>
               <button class="btn" id="btn-csv-cancel">Annuler</button>
             </div>
           </div>
@@ -477,9 +477,9 @@ body.presenting .dash-present-subtitle{font-size:.82rem;color:rgba(255,255,255,.
             <button class="btn small" id="btn-download-local-names">Telecharger DataEleves.csv</button>
           </div>
           <hr style="margin:12px 0; border:none; border-top:1px solid #e5e7eb;">
-          <h3 style="font-size:0.9rem; font-weight:800; margin:0 0 6px;">&#128269; Gestion des codes</h3>
-          <p class="muted" style="margin:0 0 8px; font-size:0.82rem;">Entre les codes de tes vrais eleves (separes par des virgules).</p>
-          <input type="text" id="orphan-codes-input" class="input" placeholder="Ex: BX24, JN76, NG37, QB42, RA56, WR92" style="width:100%; margin-bottom:8px; font-family:monospace; text-transform:uppercase;">
+          <h3 style="font-size:0.9rem; font-weight:800; margin:0 0 6px;">&#128736;&#65039; Nettoyage (avance)</h3>
+          <p class="muted" style="margin:0 0 8px; font-size:0.82rem;">Utile uniquement pour supprimer d'anciens codes inutiles. Colle les codes a conserver (separes par des virgules).</p>
+          <input type="text" id="orphan-codes-input" class="input" placeholder="Ex: KA47, TG36, CZ72..." style="width:100%; margin-bottom:8px; font-family:monospace; text-transform:uppercase;">
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn success" id="btn-recover-orphans">Recuperer ces codes</button>
             <button class="btn danger" id="btn-purge-codes">Ne garder QUE ces codes</button>
