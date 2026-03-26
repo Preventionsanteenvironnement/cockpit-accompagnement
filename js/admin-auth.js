@@ -1021,13 +1021,14 @@
     var c = safeUpper(accCode);
     var now = Date.now();
     var updates = {};
-    // Always write to autorisations (for student app + special codes)
-    updates[REF_AUTORISATIONS + '/' + c + '/autorise'] = !!autorise;
-    updates[REF_AUTORISATIONS + '/' + c + '/updated_at'] = now;
-    // Also write to student registry if this is a student
+    // Write ONLY to student_registry (separation des autorisations cockpit vs mapse.fr)
     if (registreCache[c]) {
       updates[REF_STUDENT_REGISTRY + '/' + c + '/autorise'] = !!autorise;
       updates[REF_STUDENT_REGISTRY + '/' + c + '/updated_at'] = now;
+    } else {
+      // Special codes (PROFPSE, INVITE) — keep autorisations path
+      updates[REF_AUTORISATIONS + '/' + c + '/autorise'] = !!autorise;
+      updates[REF_AUTORISATIONS + '/' + c + '/updated_at'] = now;
     }
     return scopedUpdate(updates);
   }
@@ -2277,8 +2278,6 @@
     codes.forEach(function (c) {
       updates[REF_STUDENT_REGISTRY + '/' + c + '/autorise'] = true;
       updates[REF_STUDENT_REGISTRY + '/' + c + '/updated_at'] = now;
-      updates[REF_AUTORISATIONS + '/' + c + '/autorise'] = true;
-      updates[REF_AUTORISATIONS + '/' + c + '/updated_at'] = now;
     });
     scopedUpdate(updates).then(function () {
       setUnlockStatus(codes.length + ' eleves actives.', true);
@@ -2301,8 +2300,6 @@
     codes.forEach(function (c) {
       updates[REF_STUDENT_REGISTRY + '/' + c + '/autorise'] = false;
       updates[REF_STUDENT_REGISTRY + '/' + c + '/updated_at'] = now;
-      updates[REF_AUTORISATIONS + '/' + c + '/autorise'] = false;
-      updates[REF_AUTORISATIONS + '/' + c + '/updated_at'] = now;
     });
     scopedUpdate(updates).then(function () {
       setUnlockStatus(codes.length + ' eleves desactives.', true);
