@@ -14,4 +14,4 @@ Format CSV recommande:
 
 Exemple:
 `classe;prenom;nom`
-`B1AGO1;REDACTED;REDACTED`
+`ExempleClasse;Jean;DUPONT`
